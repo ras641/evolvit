@@ -8,7 +8,7 @@ frame_count = 0
 
 BODY_RADIUS = 8
 
-PRINT = 0
+PRINT = 1
 
 # Simulation Settings
 

@@ -4,6 +4,8 @@ from simulation.organs import Organ
 from simulation.food import food, food_lock, Food
 import threading
 
+import os
+
 from config import *
 
 class Creature:
@@ -57,107 +59,138 @@ class Creature:
     def run_collisions(apply_momentum=False):
         """Handles all creature and organ collisions, applying scaled push forces and optionally momentum transfer."""
 
-        BASE_REPULSION_FORCE = 20  # ✅ Minimum push force
-        MAX_REPULSION_FORCE = 60   # ✅ Cap on maximum push force
+        BASE_REPULSION_FORCE = 20
+        MAX_REPULSION_FORCE = 60
+
+        creature_hits = set()
+        organ_hits = set()
 
         for i, creature in enumerate(Creature.creatures):
+            body_a = [
+                creature.position[0] + creature.body_pos[0],
+                creature.position[1] + creature.body_pos[1]
+            ]
+
             for j in range(i + 1, len(Creature.creatures)):
                 other = Creature.creatures[j]
+                body_b = [
+                    other.position[0] + other.body_pos[0],
+                    other.position[1] + other.body_pos[1]
+                ]
 
-                # ✅ 1️⃣ Check Central Body-to-Body Collisions
-                dx = other.position[0] - creature.position[0]
-                dy = other.position[1] - creature.position[1]
+                # 1️⃣ Body-to-Body Collision
+                dx = body_b[0] - body_a[0]
+                dy = body_b[1] - body_a[1]
                 distance = math.hypot(dx, dy)
-                min_distance = BODY_RADIUS * 2  # ✅ Using dynamic BODY_RADIUS
-                overlap = max(0, min_distance * 1.05 - distance)  # ✅ Slightly increase threshold to avoid precision issues
+                min_distance = BODY_RADIUS * 2
+                overlap = max(0, min_distance * 1.05 - distance)
 
                 if overlap > 0:
-                    contact_point = [
-                        (creature.position[0] + other.position[0]) / 2,
-                        (creature.position[1] + other.position[1]) / 2
-                    ]
-
-                    # ✅ Scale repulsion force based on overlap depth (capped)
+                    contact_point = [(body_a[0] + body_b[0]) / 2, (body_a[1] + body_b[1]) / 2]
                     repulsion_force = min(BASE_REPULSION_FORCE + overlap * 2, MAX_REPULSION_FORCE)
                     force_direction = math.atan2(dy, dx)
+
                     creature.apply_force(force_direction + math.pi, repulsion_force, contact_point)
                     other.apply_force(force_direction, repulsion_force, contact_point)
 
-                    # ✅ Apply momentum transfer only if enabled
                     if apply_momentum:
                         Creature.resolve_momentum_transfer(creature, None, other, None, contact_point)
 
-                # ✅ 2️⃣ Check Organ-to-Organ Collisions
+                # 2️⃣ Organ-to-Organ Collision
                 for organ_a in creature.organs:
+                    if not organ_a.isAlive: continue
+                    pos_a = organ_a.get_absolute_position()
+
                     for organ_b in other.organs:
-                        pos_a = organ_a.get_absolute_position()
+                        if not organ_b.isAlive: continue
                         pos_b = organ_b.get_absolute_position()
 
                         dx = pos_b[0] - pos_a[0]
                         dy = pos_b[1] - pos_a[1]
                         distance = math.hypot(dx, dy)
                         min_distance = organ_a.size + organ_b.size
-                        overlap = max(0, min_distance - distance)  # ✅ Compute overlap depth
+                        overlap = max(0, min_distance - distance)
 
                         if overlap > 0:
                             contact_point = [(pos_a[0] + pos_b[0]) / 2, (pos_a[1] + pos_b[1]) / 2]
-
-                            # ✅ Scale repulsion force based on overlap (capped)
                             repulsion_force = min(BASE_REPULSION_FORCE + overlap * 2, MAX_REPULSION_FORCE)
                             force_direction = math.atan2(dy, dx)
+
                             creature.apply_force(force_direction + math.pi, repulsion_force, contact_point)
                             other.apply_force(force_direction, repulsion_force, contact_point)
 
-                            # ✅ Apply momentum transfer only if enabled
                             if apply_momentum:
                                 Creature.resolve_momentum_transfer(creature, organ_a, other, organ_b, contact_point)
 
+                            # 🧠 Spike Damage Check
+                            if organ_a.type == "spike" and organ_b.type != "spike":
+                                
 
-                # 3 Check creature.body-to-other.organ Collisions
+                                organ_b.die()
+
+                            if organ_b.type == "spike" and organ_a.type != "spike":
+                                
+
+                                organ_a.die()
+
+                # 3️⃣ Other’s Organ vs Creature Body
                 for organ in other.organs:
+                    if not organ.isAlive: continue
                     pos_organ = organ.get_absolute_position()
 
-                    # Other's body collides with creature’s organ
-                    dx = creature.position[0] - pos_organ[0]
-                    dy = creature.position[1] - pos_organ[1]
+                    dx = body_a[0] - pos_organ[0]
+                    dy = body_a[1] - pos_organ[1]
                     distance = math.hypot(dx, dy)
                     min_distance = BODY_RADIUS + organ.size * 1.1
                     overlap = max(0, min_distance - distance)
 
                     if overlap > 0:
-                        contact_point = [(creature.position[0] + pos_organ[0]) / 2, (creature.position[1] + pos_organ[1]) / 2]
+                        contact_point = [(body_a[0] + pos_organ[0]) / 2, (body_a[1] + pos_organ[1]) / 2]
                         repulsion_force = min(BASE_REPULSION_FORCE + overlap * 2, MAX_REPULSION_FORCE)
                         force_direction = math.atan2(dy, dx)
 
                         other.apply_force(force_direction + math.pi, repulsion_force, contact_point)
-                        creature.apply_force(force_direction, repulsion_force, contact_point)  # If organs have physics
+                        creature.apply_force(force_direction, repulsion_force, contact_point)
 
+                        # 💀 Spike vs Body
+                        if organ.type == "spike":
+                            if PRINT: print(f"creature {i} spiked by creature {j}")
+                            
+                            creature.die()
 
-
-                # 4 Check other.body-to-creature.organ Collisions
+                # 4️⃣ Creature’s Organ vs Other Body
                 for organ in creature.organs:
+                    if not organ.isAlive: continue
                     pos_organ = organ.get_absolute_position()
 
-                    # Creature body collides with other’s organ
-                    dx = other.position[0] - pos_organ[0]
-                    dy = other.position[1] - pos_organ[1]
+                    dx = body_b[0] - pos_organ[0]
+                    dy = body_b[1] - pos_organ[1]
                     distance = math.hypot(dx, dy)
-                    min_distance = BODY_RADIUS + organ.size * 1.1  # ✅ Using dynamic BODY_RADIUS
+                    min_distance = BODY_RADIUS + organ.size * 1.1
                     overlap = max(0, min_distance - distance)
 
                     if overlap > 0:
-                        contact_point = [(other.position[0] + pos_organ[0]) / 2, (other.position[1] + pos_organ[1]) / 2]
+                        contact_point = [(body_b[0] + pos_organ[0]) / 2, (body_b[1] + pos_organ[1]) / 2]
                         repulsion_force = min(BASE_REPULSION_FORCE + overlap * 2, MAX_REPULSION_FORCE)
                         force_direction = math.atan2(dy, dx)
 
                         creature.apply_force(force_direction + math.pi, repulsion_force, contact_point)
-                        other.apply_force(force_direction, repulsion_force, contact_point)  # If organs have physics
+                        other.apply_force(force_direction, repulsion_force, contact_point)
+
+            
+                        # 💀 Spike vs Body
+                        if organ.type == "spike":
+                            if PRINT: print(f"creature {j} spiked by creature {i}")
+                            
+                            other.die()
 
 
 
-
-
-
+        # Return collision results
+        return {
+            "creature_hits": list(creature_hits),
+            "organ_hits": list(organ_hits)
+        }
 
 
     def resolve_momentum_transfer(creature_a, organ_a, creature_b, organ_b, contact_point):
@@ -256,80 +289,102 @@ class Creature:
         self.id = Creature.counter
         Creature.counter += 1
         self.name = name if name else f"Creature_{self.id}"
-        self.position = position
+        self.position = position[:]  # Now represents the center of mass
         self.energy = 50
         self.age = 0
         self.mutation_rate = mutation_rate
         self.user_created = user_created
         self.parent_ids = []
         self.generation = 0
-        self.direction = 0
+        self.direction = 0  # radians
         self.isAlive = True
         self.organs = []
 
-        self.velocity = [0,0]
+        self.velocity = [0, 0]
         self.angular_velocity = 0
 
-        # ✅ Compute mass first to avoid undefined attribute issues
-        self.mass = 1  # Default to prevent division errors
-        self.com = [0, 0]  # Default center of mass
-        self.rotational_inertia = 1  # Prevent division by zero
         # ---- Organ setup ----
         if organs:
             for organ_data in organs:
                 if isinstance(organ_data, Organ):
-                    # If it's already an Organ object (e.g., from copy)
                     organ = organ_data
-                    organ.set_parent(self)  # Set parent properly
+                    organ.set_parent(self)
                 elif isinstance(organ_data, dict):
-                    # If it's a dict (e.g., from upload)
                     organ_type = organ_data["type"]
                     position = organ_data["position"]
                     size = organ_data["size"]
                     organ = Organ.create_organ(organ_type, position, size, parent=self)
                 else:
                     if PRINT: print(f"❌ Unknown organ format: {organ_data}")
-                    continue  # Skip invalid
-
+                    continue
                 self.organs.append(organ)
 
-        if not self.validate_organs():
+ 
 
-            self.die()
 
-            return
-                # ✅ Sprite ID assignment (after validation)
-
+        # ✅ Calculate mass first
         self.mass = self.calculate_mass()
 
-        self.com = self.calculate_com()
+        # ✅ Calculate center of mass (from organ layout)
+        self.body_pos = self.calculate_com()
 
+        print (self.body_pos)
+
+        # ✅ Shift all organ positions so COM is now origin
+        for organ in self.organs:
+            if not organ.isAlive: continue
+            organ.position[0] += self.body_pos[0]
+            organ.position[1] += self.body_pos[1]
+
+        # ✅ Since we centered organs around COM, update self.position to be world COM
+        self.position[0] += self.body_pos[0]
+        self.position[1] += self.body_pos[1]
+
+        # ✅ Validate organ layout
+        if not self.validate_organs():
+            self.die()
+            return
+
+        # ✅ Now recalculate rotational inertia (based on new COM-relative organ positions)
         self.rotational_inertia = self.calculate_rotational_inertia()
 
+        # ✅ Sprite generation (after validation and adjustment)
         self.sprite_id = self.compute_sprite_id()
 
-        if PRINT: print(f"✅ Creature {self.id} created with {len(self.organs)} organs. Sprite ID: {self.sprite_id}")
+        if PRINT:
+            
+            print(f"✅ Creature {self.id} created with {len(self.organs)} organs. Sprite ID: {self.sprite_id}")
+            print(f"✅ body_pos: {self.body_pos}")
 
-        self.isAlive = True
+            for organ in self.organs:
+
+                print(f"✅ organ_pos: {organ.position}")
 
     def validate_organs(self):
-        """Check if organs overlap each other, the center, or go outside design bounds. Return True if valid, False if not."""
+        """Check if organs are within bounds, not overlapping the body or other organs."""
+
         for i, organ in enumerate(self.organs):
+            
+            if not organ.isAlive: continue
             x, y = organ.position
             size = organ.size
 
-            # ✅ Check if organ goes outside creature's design box (-50 to 50)
+            # ✅ 1. Bounds check: inside design area (-50 to +50 relative to COM)
             if not (-50 + size <= x <= 50 - size) or not (-50 + size <= y <= 50 - size):
-                if PRINT: print(f"❌ {self.id}: Organ {organ.type} at {organ.position} goes out of bounds.")
-                return False  # Out of bounds
+                if PRINT:
+                    print(f"❌ {self.id}: Organ {organ.type} at {organ.position} is out of bounds.")
+                return False
 
-            # ✅ Check overlap with center
-            distance_to_center = math.hypot(x, y)
-            if distance_to_center < (BODY_RADIUS + size):
-                if PRINT: print(f"❌ {self.id}: Organ {organ.type} at {organ.position} overlaps center.")
-                return False  # Overlaps center
+            # ✅ 2. Check overlap with body (at self.body_pos, radius = BODY_RADIUS)
+            dx = x - self.body_pos[0]
+            dy = y - self.body_pos[1]
+            distance_to_body = math.hypot(dx, dy)
+            if distance_to_body < (BODY_RADIUS + size):
+                if PRINT:
+                    print(f"❌ {self.id}: Organ {organ.size} at {organ.position} overlaps body at {self.body_pos}.")
+                return False
 
-            # ✅ Check overlap with other organs
+            # ✅ 3. Check overlap with other organs
             for j in range(i + 1, len(self.organs)):
                 other = self.organs[j]
                 ox, oy = other.position
@@ -337,29 +392,84 @@ class Creature:
 
                 distance = math.hypot(x - ox, y - oy)
                 if distance < (size + osize):
-                    if PRINT: print(f"❌ {self.id}: Organ {organ.type} overlaps with {other.type}.")
-                    return False  # Overlaps another organ
+                    if PRINT:
+                        print(f"❌ {self.id}: Organ {organ.type} overlaps with {other.type} at {other.position}.")
+                    return False
 
-        return True  # ✅ All checks passed
+        return True
     
     def serialize_organs(self):
-        """Serialize organs into a string for hashing/comparison."""
+        """Serialize body position + organs (relative to COM) for sprite ID hashing."""
+
+        # Round body position slightly for hash stability
+        bx = round(self.body_pos[0], 2)
+        by = round(self.body_pos[1], 2)
+
+        # Sort and serialize organs
         sorted_organs = sorted(
-            [(o.type, o.position[0], o.position[1], o.size) for o in self.organs]
+            [(o.type, round(o.position[0], 2), round(o.position[1], 2), o.size) for o in self.organs if o.isAlive]
         )
-        return "|".join([f"{t},{x},{y},{s}" for t, x, y, s in sorted_organs])
+
+        organ_str = "|".join([f"{t},{x},{y},{s}" for t, x, y, s in sorted_organs])
+
+        return f"body:{bx},{by}|{organ_str}"
 
     def compute_sprite_id(self):
-        """Assign or reuse sprite ID based on serialized organ layout."""
+        """Assign or reuse sprite ID based on serialized organ layout, and generate SVG if new."""
         serialized = self.serialize_organs()
-        # Check if layout already exists
+
+        # ✅ Check for existing layout
         for sid, layout in Creature.sprite_map.items():
             if layout == serialized:
-                return sid  # Reuse existing sprite ID
-        # If not found, create new sprite ID
+                return sid  # Reuse existing ID
+
+        # ✅ New layout: assign ID and store layout
         sprite_id = Creature.sprite_counter
         Creature.sprite_map[sprite_id] = serialized
         Creature.sprite_counter += 1
+
+        # ✅ Create SVG
+        svg = []
+        canvas_size = 150
+        half = canvas_size // 2
+
+        svg.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{canvas_size}" height="{canvas_size}" viewBox="{-half} {-half} {canvas_size} {canvas_size}">')
+
+        bx, by = self.body_pos
+
+        # ➤ First: draw lines from body to organs (underneath organs)
+        for organ in self.organs:
+            if not organ.isAlive: continue
+            ox, oy = organ.position
+            svg.append(f'<line x1="{bx}" y1="{by}" x2="{ox}" y2="{oy}" stroke="black" stroke-width="1"/>')
+
+        # ➤ Second: draw organ circles (on top of lines)
+
+        # ✅ Draw body circle in blue
+
+        svg.append(f'<circle cx="{bx}" cy="{by}" r="{BODY_RADIUS}" fill="blue" stroke="black" stroke-width="1"/>')
+
+        for organ in self.organs:
+            if not organ.isAlive: continue
+            ox, oy = organ.position
+            r = organ.size
+
+            color = {
+                "mouth": "yellow",
+                "eye": "white",
+                "flipper": "orange",
+                "spike": "red"
+            }.get(organ.type, "gray")
+
+            svg.append(f'<circle cx="{ox}" cy="{oy}" r="{r}" fill="{color}" stroke="black" stroke-width="1"/>')
+
+        svg.append('</svg>')
+
+        # ✅ Write to file
+        os.makedirs("sprites", exist_ok=True)
+        with open(f"sprites/sprite_{sprite_id}.svg", "w") as f:
+            f.write("\n".join(svg))
+
         return sprite_id
     
     def calculate_mass(self):
@@ -368,87 +478,70 @@ class Creature:
         body_mass = math.pi * (BODY_RADIUS ** 2)
 
         # Sum the mass of all organs (π * r² * density)
-        organ_mass = sum(math.pi * (organ.size ** 2) for organ in self.organs)
+        organ_mass = sum(math.pi * (organ.size ** 2) for organ in self.organs if organ.isAlive)
 
         return body_mass + organ_mass
     
     def calculate_com(self):
 
-        weighted_x = sum(organ.position[0] * (math.pi * organ.size ** 2) for organ in self.organs)
-        weighted_y = sum(organ.position[1] * (math.pi * organ.size ** 2) for organ in self.organs)
+        weighted_x = -sum(organ.position[0] * (math.pi * organ.size ** 2) for organ in self.organs if organ.isAlive)
+        weighted_y = -sum(organ.position[1] * (math.pi * organ.size ** 2) for organ in self.organs if organ.isAlive)
 
         return [weighted_x / self.mass, weighted_y / self.mass]
     
 
     
     def calculate_rotational_inertia(self):
+        """Compute rotational inertia relative to the center of mass (now at position [0,0])."""
 
         inertia = 0
+
         for organ in self.organs:
-            # ✅ Distance from COM, not just (0,0)
-            r = math.hypot(
-                organ.position[0] - self.com[0], 
-                organ.position[1] - self.com[1]
-            )
-            organ_mass = math.pi * (organ.size ** 2)  # Mass = πr² (density = 1)
-            inertia += organ_mass * (r ** 2)  # Rotational inertia = Σ (m * r²)
+            if not organ.isAlive: continue
+            organ_mass = math.pi * (organ.size ** 2)  # Assume unit density: mass = area
+            r = math.hypot(organ.position[0], organ.position[1])  # Already relative to COM
+            inertia += organ_mass * (r ** 2)  # I = Σ(m * r²)
 
-        return inertia if inertia > 0 else 1  # Prevent divide-by-zero
+        # Optionally include the body's inertia if it's not centered
+        body_mass = math.pi * (BODY_RADIUS ** 2)
+        r_body = math.hypot(self.body_pos[0], self.body_pos[1])
+        inertia += body_mass * (r_body ** 2)
+
+        return inertia if inertia > 0 else 1
     
-    def get_absolute_com(self):
-        """Calculate absolute Center of Mass (COM) in world space."""
-        com_x, com_y = self.com  # Relative COM stored in creature
-
-        # ✅ Convert parent's direction (radians) into cosine & sine values
-        cos_theta = math.cos(self.direction)
-        sin_theta = math.sin(self.direction)
-
-        # ✅ Rotate COM relative to creature's direction
-        rotated_x = com_x * cos_theta - com_y * sin_theta
-        rotated_y = com_x * sin_theta + com_y * cos_theta
-
-        # ✅ Compute absolute COM position
-        abs_com_x = self.position[0] + rotated_x
-        abs_com_y = self.position[1] + rotated_y
-        return [abs_com_x, abs_com_y]
     
     def apply_force(self, angle, magnitude, world_position):
-        """Apply force in world space, optimizing torque calculations and logging force applications for debugging."""
+        """Apply force in world space, using center-of-mass as origin."""
 
-        # ✅ Ignore very small forces to reduce unnecessary calculations
+        # ✅ Ignore very small forces
         if magnitude < 0.01:
-            return  # Skip applying force if it's too small to matter
+            return
 
-        # ✅ Precompute force vector once
+        # ✅ Compute force vector from angle
         force_x = math.cos(angle) * magnitude
         force_y = math.sin(angle) * magnitude
 
-        # ✅ Apply acceleration
+        # ✅ Apply linear acceleration
         self.velocity[0] += force_x / self.mass
         self.velocity[1] += force_y / self.mass
 
-        # ✅ Compute relative position from Center of Mass (COM)
-        absolute_com = self.get_absolute_com()
-        rel_x = world_position[0] - absolute_com[0]
-        rel_y = world_position[1] - absolute_com[1]
+        # ✅ Compute position of application relative to center of mass
+        rel_x = world_position[0] - self.position[0]
+        rel_y = world_position[1] - self.position[1]
 
-        # ✅ Skip torque calculation if force is near COM OR force is too weak
-        if abs(rel_x) > 0.01 or abs(rel_y) > 0.01:
-            torque = (rel_x * force_y) - (rel_y * force_x)
+        # ✅ Apply torque if the force is off-center
+        torque = (rel_x * force_y) - (rel_y * force_x)
+        if abs(torque) > 0.001:
+            self.angular_velocity += torque / self.rotational_inertia
 
-            # ✅ Ignore insignificant torque to prevent micro-oscillations
-            if abs(torque) > 0.001:
-                self.angular_velocity += (torque / self.rotational_inertia)
+            # ✅ Clamp tiny oscillations
+            if abs(self.angular_velocity) < 0.0001:
+                self.angular_velocity = 0
 
-                # ✅ Apply a dead zone to stop tiny oscillations
-                if abs(self.angular_velocity) < 0.0001:
-                    self.angular_velocity = 0
-
-        if (DEBUG):
-
-            # ✅ Log the force application in the static dictionary
+        # ✅ Debug logging
+        if DEBUG:
             if self.id not in Creature.force_log:
-                Creature.force_log[self.id] = []  # Initialize list if first time logging this creature
+                Creature.force_log[self.id] = []
 
             Creature.force_log[self.id].append({
                 "a": angle,
@@ -468,92 +561,67 @@ class Creature:
 
     def run_organs(self):
         for organ in self.organs:
+            if not organ.isAlive: continue
             organ.simulate()
 
     def update_position(self):
         """Apply stored velocity & rotation to move creature each frame."""
-        
-        # ✅ Update position with velocity and wrap around the 500x500 world
+
+        # ✅ Move using velocity, wrap around world
         self.position[0] = (self.position[0] + self.velocity[0]) % 500
         self.position[1] = (self.position[1] + self.velocity[1]) % 500
 
+        # ✅ Rotate based on angular velocity
+        self.direction = (self.direction + self.angular_velocity) % (2 * math.pi)
 
-
-        # ✅ Step 2: Get the absolute world position of the center of mass
-        absolute_com = self.get_absolute_com()
-
-        # ✅ Step 3: Update direction based on angular velocity
-        self.direction = (self.direction + self.angular_velocity) % (2 * math.pi)  # Keep in range [0, 2π]
-
-        # ✅ Step 4: Adjust position based on rotation around absolute_com
-        # Compute current offset of `position` from the absolute center of mass
-        offset_x = self.position[0] - absolute_com[0]
-        offset_y = self.position[1] - absolute_com[1]
-
-        # Apply small-angle rotation transformation
-        cos_theta = math.cos(self.angular_velocity)
-        sin_theta = math.sin(self.angular_velocity)
-
-        rotated_x = offset_x * cos_theta - offset_y * sin_theta
-        rotated_y = offset_x * sin_theta + offset_y * cos_theta
-
-        # Compute new position based on rotated offset
-        self.position[0] = absolute_com[0] + rotated_x
-        self.position[1] = absolute_com[1] + rotated_y
-
-
-
-
-
-
+        # ✅ Apply friction (every few frames)
         if frame_count % FRICTION_STEP == 0:
-
             self.velocity[0] *= FRICTION
             self.velocity[1] *= FRICTION
-            self.angular_velocity *= (FRICTION ** 2) # Slowly decay rotation
+            self.angular_velocity *= (FRICTION ** 2)
 
-            # ✅ Kill the creature if rotation exceeds a hard limit
+            # ✅ Kill creature if it spins too fast
             if abs(self.angular_velocity) > MAX_AV:
-                self.die()  # Make sure this method is properly defined
+                self.die()
 
+        # ✅ Basal metabolic cost
         self.energy -= BMR
 
     def reproduce(self):
-        """Creates a new creature with possible mutations."""
+        """Creates a new creature by cloning, with passive mutations (e.g., organs mutate on copy)."""
+
         if self.energy < 70:
-            return None  # No reproduction this cycle
+            return None
 
         self.energy -= 50
 
+        #offspring_organs = [organ.copy_mutate() for organ in self.organs]  # Passive mutation happens here
+
         offspring = Creature(
-            position=self.position.copy(),  # Copy position
+            position=self.position.copy(),
             mutation_rate=self.mutation_rate,
             user_created=False,
-            organs=[organ.copy() for organ in self.organs]  # Create fresh copies of organs
+            organs=[organ.copy() for organ in self.organs if organ.isAlive]
         )
 
-        # Set parent creature for each copied organ
         for organ in offspring.organs:
             organ.set_parent(offspring)
 
-        angle = random.uniform(0, 2 * math.pi)  # Random direction in radians
+        # Spawn nearby
+        angle = random.uniform(0, 2 * math.pi)
         offset_x = math.cos(angle) * 50
         offset_y = math.sin(angle) * 50
 
         offspring.position[0] = (self.position[0] + offset_x) % 500
         offspring.position[1] = (self.position[1] + offset_y) % 500
 
+        # Inherit traits
         offspring.generation = self.generation + 1
         offspring.parent_ids.append(self.id)
         offspring.energy = 40
-        offspring.direction = self.random_direction()  # New random direction
+        offspring.direction = self.random_direction()
 
-        # ✅ Recalculate physics properties (Fix missing `mass` issue)
-        offspring.mass = offspring.calculate_mass()
-        offspring.com = offspring.calculate_com()
-        offspring.rotational_inertia = offspring.calculate_rotational_inertia()
-
-        offspring.mutate()  # Mutate AFTER organs are set
+        offspring.mutate()
 
         return offspring
 
@@ -561,7 +629,7 @@ class Creature:
         """Handle creature death by spawning food proportionate to its energy."""
         if PRINT: print(f"💀 Creature {self.id} has died.")
 
-        num_food = 1 + math.floor(self.energy / 20)  # Calculate number of food items to drop
+        num_food = math.floor(self.energy / 20)  # Calculate number of food items to drop
 
         with food_lock:  # Ensure thread safety
             for _ in range(num_food):

@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 import uuid
+import os
 
 from simulation.creatures import Creature
 
@@ -40,9 +41,25 @@ def get_creatures():
 
 @api_bp.route('/getsprites', methods=['GET'])
 def get_sprites():
-    """Return all sprite layouts and their sprite IDs."""
-    with Creature.creatures_lock:  # Ensure thread-safety
-        return jsonify(Creature.sprite_map)
+    """Return all sprite SVGs and their sprite IDs."""
+    svg_data = []
+
+    with Creature.creatures_lock:
+        for sprite_id in Creature.sprite_map.keys():
+            svg_path = f"sprites/sprite_{sprite_id}.svg"
+
+            if os.path.exists(svg_path):
+                with open(svg_path, "r") as f:
+                    svg_content = f.read()
+                svg_data.append({
+                    "id": sprite_id,
+                    "svg": svg_content
+                })
+            else:
+                # Optionally log or return a placeholder if missing
+                print(f"⚠️ Missing sprite SVG: {svg_path}")
+
+    return jsonify(svg_data)
 
 @api_bp.route('/uploadcreature', methods=['POST'])
 def upload_creature():
