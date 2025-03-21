@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Creature Simulation Visualizer</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; }
+        canvas { display: block; margin: auto; background: #333333; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; font-family: Arial, sans-serif; }
+    
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #222; 
+            display: flex; /* ✅ Flex layout */
+        }
+
+        #sidebar {
+            width: 120px; /* ✅ Enough room for sprite + label */
+            height: 100vh; /* Full height */
+            right:0;
+            overflow-y: auto; /* Scrollable if too many */
+            background: #111; /* Dark background */
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        canvas {
+            display: block;
+            background: #333333;
+        }
+
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px; /* Offset right of sidebar */
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+    
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="500" height="500"></canvas>
+    <div id="sidebar"></div> <!-- ✅ Sidebar for sprite previews -->
+    <div id="info">Loading...</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const infoDiv = document.getElementById('info');
+
+        const sprites = {};                // Preloaded organ sprites
+        const spriteStore = {};            // Local sprite data: { sprite_id: { layout, image } }
+        const creatureStore = {};          // Local creature data: { creature_id: { ... } }
+        const foodStore = [];
+
+        async function loadSprite(name, src) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => { sprites[name] = img; resolve(); };
+                img.src = src;
+            });
+        }
+
+        async function preloadSprites() {
+            await Promise.all([
+                loadSprite('body', '/sprites/body.png'),
+                loadSprite('eye', '/sprites/eye.png'),
+                loadSprite('flipper', '/sprites/flipper.png'),
+                loadSprite('food', '/sprites/food.png'),
+                loadSprite('mouth', '/sprites/mouth.png'),
+                loadSprite('spike', '/sprites/spike.png')
+            ]);
+            console.log('✅ Organ sprites loaded!');
+        }
+
+        async function fetchSprites() {
+            try {
+                const response = await fetch('/api/getsprites');
+                const data = await response.json();
+                Object.entries(data).forEach(([sprite_id, layout_serialized]) => {
+                    const layout = layout_serialized.split('|').map(part => {
+                        const [type, x, y, size] = part.split(',');
+                        return { type, position: [parseFloat(x), parseFloat(y)], size: parseFloat(size) };
+                    });
+                    spriteStore[sprite_id] = {
+                        layout,
+                        image: preRenderSprite(layout)
+                    };
+                });
+                console.log('✅ Sprites fetched and pre-rendered');
+                drawDebugSprites();
+            } catch (err) {
+                console.error('❌ Failed to fetch sprites:', err);
+            }
+        }
+
+        function preRenderSprite(organs) {
+            const canvasSize = 100;
+            const center = canvasSize / 2;
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = canvasSize;
+            offCanvas.height = canvasSize;
+            const offCtx = offCanvas.getContext('2d');
+
+            const bodyRadius = 8; // Keep the center node radius fixed
+
+            // Draw organs and connection lines
+            offCtx.strokeStyle = 'black';
+            offCtx.lineWidth = 2;
+
+            organs.forEach(organ => {
+                const relativeX = organ.position[0];
+                const relativeY = organ.position[1];
+                const organRadius = organ.size; // ✅ Using radius properly
+
+                // ✅ Adjusted Organ Position (Corrected for Center)
+                const posX = center + relativeX;
+                const posY = center + relativeY;
+
+                // ✅ Adjust line to connect from body edge to organ edge
+                const angle = Math.atan2(relativeY, relativeX);
+                const startX = center + Math.cos(angle) * bodyRadius;
+                const startY = center + Math.sin(angle) * bodyRadius;
+                const endX = posX - Math.cos(angle) * organRadius;
+                const endY = posY - Math.sin(angle) * organRadius;
+
+                // ✅ Draw line from body edge to organ edge
+                offCtx.beginPath();
+                offCtx.moveTo(startX, startY);
+                offCtx.lineTo(endX, endY);
+                offCtx.stroke();
+
+                // ✅ Draw organ image correctly centered
+                if (sprites[organ.type]) {
+                    offCtx.drawImage(
+                        sprites[organ.type],
+                        posX - organRadius, // ✅ Center corrected
+                        posY - organRadius, // ✅ Center corrected
+                        organRadius * 2,    // Width (diameter)
+                        organRadius * 2     // Height (diameter)
+                    );
+                }
+            });
+
+            // ✅ Draw the body last to ensure it's on top
+            offCtx.drawImage(
+                sprites['body'],
+                center - bodyRadius,
+                center - bodyRadius,
+                bodyRadius * 2,
+                bodyRadius * 2
+            );
+
+            return offCanvas;
+        }
+
+
+        async function fetchState() {
+            try {
+                const response = await fetch('/api/getstate');
+                const data = await response.json();
+
+                if (Array.isArray(data.creatures)) {
+                    const receivedCreatureIds = new Set(); // ✅ Store received IDs as strings
+
+                    // ✅ Add/update creatures and track IDs
+                    data.creatures.forEach(creature => {
+                        const id = String(creature.id); // Normalize as string
+                        creatureStore[id] = creature;
+                        receivedCreatureIds.add(id);
+                    });
+
+                    // ✅ Remove creatures not received this update
+                    Object.keys(creatureStore).forEach(id => {
+                        if (!receivedCreatureIds.has(id)) {
+                            console.log(`❌ Removing dead creature: ${id}`);
+                            delete creatureStore[id];
+                        }
+                    });
+
+                    render(); // ✅ Redraw world
+                } else {
+                    console.warn('⚠️ No creatures array found in response');
+                }
+
+                //console.log('✅ Creatures fetched and stored:', creatureStore);
+
+                if (Array.isArray(data.food)) {
+                    foodStore.length = 0; // ✅ Clear old food
+                    data.food.forEach(pos => foodStore.push(pos)); // ✅ Just push [x, y] positions
+                }
+
+            } catch (error) {
+                console.error('Failed to fetch state:', error);
+            }
+        }
+
+
+        function drawDebugSprites() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.innerHTML = ''; // Clear existing
+
+            const spriteIDs = Object.keys(spriteStore);
+            console.log('🖼️ Sidebar Sprites:', spriteIDs); // Debug log
+
+            spriteIDs.forEach(id => {
+                const sprite = spriteStore[id].image;
+
+                if (sprite) {
+                    // Create container for sprite and label
+                    const container = document.createElement('div');
+                    container.style.marginBottom = '10px';
+                    container.style.textAlign = 'center';
+
+                    // Add sprite image
+                    const spriteElement = document.createElement('canvas');
+                    spriteElement.width = sprite.width;
+                    spriteElement.height = sprite.height;
+                    const ctx = spriteElement.getContext('2d');
+                    ctx.drawImage(sprite, 0, 0);
+
+                    // Add label
+                    const label = document.createElement('div');
+                    label.innerText = id;
+                    label.style.color = 'white';
+                    label.style.fontSize = '12px';
+                    label.style.marginTop = '2px';
+
+                    // Append both
+                    container.appendChild(spriteElement);
+                    container.appendChild(label);
+                    sidebar.appendChild(container);
+                }
+            });
+        }
+
+        function drawCreature(creature) {
+            const [x, y] = creature.position;
+            const facing = creature.direction;
+            //const facing = Math.atan2(dirY, dirX);
+
+            const spriteData = spriteStore[creature.sprite_id];
+            const sprite = spriteData ? spriteData.image : null; // ✅ Get sprite or null
+            const spriteSize = sprite ? sprite.width : 50; // ✅ Use real size or default 50px
+            const center = spriteSize / 2;
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(facing);
+
+            if (sprite) {
+                // ✅ Draw real sprite
+                ctx.drawImage(sprite, -center, -center);
+            } else {
+                // ❌ Missing sprite → Render a placeholder box
+                ctx.fillStyle = "gray"; // ✅ Placeholder color
+                ctx.fillRect(-center, -center, spriteSize, spriteSize); // ✅ Simple box
+            }
+
+            ctx.restore();
+
+            // ✅ Always Draw Creature ID (Even if sprite is missing)
+            ctx.fillStyle = 'white';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${creature.id} (${creature.sprite_id})`, x, y);
+        }
+
+        function drawFood(pos) {
+            const [x, y] = pos; // ✅ Directly unpack position array
+            const sprite = sprites['food'];
+            const foodSize = 8; // Adjust as needed
+
+            ctx.drawImage(
+                sprite,
+                x - foodSize / 2,
+                y - foodSize / 2,
+                foodSize,
+                foodSize
+            );
+        }
+
+        function drawArrowhead(startX, startY, endX, endY) {
+            const arrowSize = 5; // Size of arrowhead
+            const angle = Math.atan2(endY - startY, endX - startX);
+
+            ctx.beginPath();
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(
+                endX - arrowSize * Math.cos(angle - Math.PI / 6),
+                endY - arrowSize * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.lineTo(
+                endX - arrowSize * Math.cos(angle + Math.PI / 6),
+                endY - arrowSize * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fillStyle = 'red'; // Match line color
+            ctx.fill();
+        }
+        async function drawForces() {
+            try {
+                const response = await fetch('/api/getforces');
+                const data = await response.json();
+                const forces = data.forces || {}; // ✅ Use the forces directly without storing
+
+                Object.entries(forces).forEach(([creatureId, forceList]) => {
+                    forceList.forEach(force => {
+                        const [x, y] = force.w; // ✅ World position of force
+                        const angle = force.a;  // ✅ Angle in radians
+                        const magnitude = force.m; // ✅ Magnitude (length in pixels)
+
+                        // ✅ Compute arrow endpoint
+                        const endX = x + Math.cos(angle) * magnitude;
+                        const endY = y + Math.sin(angle) * magnitude;
+
+                        // ✅ Draw force vector (red line)
+                        ctx.strokeStyle = 'red';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+
+                        // ✅ Draw arrowhead at the tip
+                        drawArrowhead(x, y, endX, endY);
+
+                        // ✅ Draw force label near arrow tip
+                        ctx.fillStyle = 'white';
+                        ctx.font = '10px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`F${creatureId}`, endX, endY - 5);
+                    });
+                });
+
+            } catch (error) {
+                console.error('❌ Failed to fetch forces:', error);
+            }
+        }
+
+
+        function render() { //make this async if debugging forces
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+
+             // ✅ Draw top bar of sprites for debugging
+            Object.values(creatureStore).forEach(drawCreature);
+                // ✅ Draw food
+            Object.values(foodStore).forEach(drawFood);
+
+            //await drawForces(); //only for debugging forces keep off
+
+            infoDiv.innerHTML = `<strong>Population:</strong> ${Object.keys(creatureStore).length}`;
+        }
+
+        // Main init
+        (async () => {
+            await preloadSprites();        // Load sprites
+            await fetchSprites();         // Fetch and pre-render sprite layouts
+            console.log('✅ Ready and running');
+            setInterval(fetchState, 33);  // Game loop (30fps)
+            setInterval(fetchSprites, 5000); // Refresh sprites every 5 seconds
+        })();
+    </script>
+</body>
+</html>

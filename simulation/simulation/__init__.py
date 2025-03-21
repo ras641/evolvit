@@ -1,0 +1,1 @@
+# Allows treating the folder as a module
