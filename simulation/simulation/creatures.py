@@ -8,6 +8,10 @@ import os
 
 from config import *
 
+
+sprite_lock = threading.Lock()
+
+
 class Creature:
 
     ORGANS = ["mouth", "eye", "flipper", "spike"]
@@ -328,7 +332,7 @@ class Creature:
         # ✅ Calculate center of mass (from organ layout)
         self.body_pos = self.calculate_com()
 
-        print (self.body_pos)
+        # print (self.body_pos)
 
         # ✅ Shift all organ positions so COM is now origin
         for organ in self.organs:
@@ -412,63 +416,61 @@ class Creature:
 
         organ_str = "|".join([f"{t},{x},{y},{s}" for t, x, y, s in sorted_organs])
 
-        return f"body:{bx},{by}|{organ_str}"
+        return f"body,{bx},{by}|{organ_str}"
 
-    def compute_sprite_id(self):
-        """Assign or reuse sprite ID based on serialized organ layout, and generate SVG if new."""
+
+    def compute_sprite_id(self, generate_svg=False):
+        """Assign or reuse sprite ID based on serialized organ layout, and optionally generate SVG."""
         serialized = self.serialize_organs()
 
-        # ✅ Check for existing layout
-        for sid, layout in Creature.sprite_map.items():
-            if layout == serialized:
-                return sid  # Reuse existing ID
+        with sprite_lock:
+            for sid, layout in Creature.sprite_map.items():
+                if layout == serialized:
+                    return sid  # ✅ Reuse existing layout
 
-        # ✅ New layout: assign ID and store layout
-        sprite_id = Creature.sprite_counter
-        Creature.sprite_map[sprite_id] = serialized
-        Creature.sprite_counter += 1
+            sprite_id = Creature.sprite_counter
+            Creature.sprite_map[sprite_id] = serialized
+            Creature.sprite_counter += 1
+        
+        if SVG:
 
-        # ✅ Create SVG
-        svg = []
-        canvas_size = 150
-        half = canvas_size // 2
+            # ✅ Create SVG visualization
+            svg = []
+            canvas_size = 150
+            half = canvas_size // 2
 
-        svg.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{canvas_size}" height="{canvas_size}" viewBox="{-half} {-half} {canvas_size} {canvas_size}">')
+            svg.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{canvas_size}" height="{canvas_size}" viewBox="{-half} {-half} {canvas_size} {canvas_size}">')
 
-        bx, by = self.body_pos
+            bx, by = self.body_pos if hasattr(self, 'body_pos') else (0, 0)
 
-        # ➤ First: draw lines from body to organs (underneath organs)
-        for organ in self.organs:
-            if not organ.isAlive: continue
-            ox, oy = organ.position
-            svg.append(f'<line x1="{bx}" y1="{by}" x2="{ox}" y2="{oy}" stroke="black" stroke-width="1"/>')
+            # ➤ Draw connection lines first
+            for organ in self.organs:
+                if getattr(organ, 'isAlive', True):
+                    ox, oy = organ.position
+                    svg.append(f'<line x1="{bx}" y1="{by}" x2="{ox}" y2="{oy}" stroke="black" stroke-width="1"/>')
 
-        # ➤ Second: draw organ circles (on top of lines)
+            # ➤ Draw body center
+            svg.append(f'<circle cx="{bx}" cy="{by}" r="{BODY_RADIUS}" fill="blue" stroke="black" stroke-width="1"/>')
 
-        # ✅ Draw body circle in blue
+            # ➤ Draw organs
+            for organ in self.organs:
+                if getattr(organ, 'isAlive', True):
+                    ox, oy = organ.position
+                    r = organ.size
+                    color = {
+                        "mouth": "yellow",
+                        "eye": "white",
+                        "flipper": "orange",
+                        "spike": "red"
+                    }.get(organ.type, "gray")
 
-        svg.append(f'<circle cx="{bx}" cy="{by}" r="{BODY_RADIUS}" fill="blue" stroke="black" stroke-width="1"/>')
+                    svg.append(f'<circle cx="{ox}" cy="{oy}" r="{r}" fill="{color}" stroke="black" stroke-width="1"/>')
 
-        for organ in self.organs:
-            if not organ.isAlive: continue
-            ox, oy = organ.position
-            r = organ.size
+            svg.append('</svg>')
 
-            color = {
-                "mouth": "yellow",
-                "eye": "white",
-                "flipper": "orange",
-                "spike": "red"
-            }.get(organ.type, "gray")
-
-            svg.append(f'<circle cx="{ox}" cy="{oy}" r="{r}" fill="{color}" stroke="black" stroke-width="1"/>')
-
-        svg.append('</svg>')
-
-        # ✅ Write to file
-        os.makedirs("sprites", exist_ok=True)
-        with open(f"sprites/sprite_{sprite_id}.svg", "w") as f:
-            f.write("\n".join(svg))
+            os.makedirs("sprites", exist_ok=True)
+            with open(f"sprites/sprite_{sprite_id}.svg", "w") as f:
+                f.write("\n".join(svg))
 
         return sprite_id
     
@@ -593,7 +595,7 @@ class Creature:
         if self.energy < 70:
             return None
 
-        self.energy -= 50
+        self.energy -= 60
 
         #offspring_organs = [organ.copy_mutate() for organ in self.organs]  # Passive mutation happens here
 
@@ -618,7 +620,7 @@ class Creature:
         # Inherit traits
         offspring.generation = self.generation + 1
         offspring.parent_ids.append(self.id)
-        offspring.energy = 40
+        offspring.energy = 50
         offspring.direction = self.random_direction()
 
         offspring.mutate()
@@ -629,7 +631,7 @@ class Creature:
         """Handle creature death by spawning food proportionate to its energy."""
         if PRINT: print(f"💀 Creature {self.id} has died.")
 
-        num_food = math.floor(self.energy / 20)  # Calculate number of food items to drop
+        num_food = int(math.floor(self.energy / 25))  # Calculate number of food items to drop
 
         with food_lock:  # Ensure thread safety
             for _ in range(num_food):

@@ -4,6 +4,8 @@ import os
 
 from simulation.creatures import Creature
 
+from simulation.creatures import sprite_lock
+
 api_bp = Blueprint('api', __name__)
 
 @api_bp.route('/getstate', methods=['GET'])
@@ -41,25 +43,22 @@ def get_creatures():
 
 @api_bp.route('/getsprites', methods=['GET'])
 def get_sprites():
-    """Return all sprite SVGs and their sprite IDs."""
-    svg_data = []
+    """Return all sprite layouts by sprite ID."""
+    layout_data = []
 
-    with Creature.creatures_lock:
-        for sprite_id in Creature.sprite_map.keys():
-            svg_path = f"sprites/sprite_{sprite_id}.svg"
-
-            if os.path.exists(svg_path):
-                with open(svg_path, "r") as f:
-                    svg_content = f.read()
-                svg_data.append({
-                    "id": sprite_id,
-                    "svg": svg_content
-                })
+    with sprite_lock:
+        for sprite_id, value in Creature.sprite_map.items():
+            if isinstance(value, dict):
+                layout = value.get("layout")
             else:
-                # Optionally log or return a placeholder if missing
-                print(f"⚠️ Missing sprite SVG: {svg_path}")
+                layout = value  # If stored as raw string only
 
-    return jsonify(svg_data)
+            layout_data.append({
+                "id": sprite_id,
+                "layout": layout
+            })
+
+    return jsonify(layout_data)
 
 @api_bp.route('/uploadcreature', methods=['POST'])
 def upload_creature():

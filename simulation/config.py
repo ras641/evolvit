@@ -8,11 +8,13 @@ frame_count = 0
 
 BODY_RADIUS = 8
 
-PRINT = 1
+PRINT = 0
+
+SVG = False
 
 # Simulation Settings
 
-FPS = 50.0
+FPS = 600.0
 SIMULATION_SPEED = 0
 if FPS > 0: SIMULATION_SPEED = 1.0/FPS
 BASE_REPRODUCTION_CHANCE = 0.05
