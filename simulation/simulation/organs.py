@@ -13,6 +13,7 @@ class Organ:
         self.size = size
         self.type = "generic"
         self.parent = parent
+        self.isAlive = True
 
     def set_parent(self, creature):
         self.parent = creature
@@ -38,6 +39,12 @@ class Organ:
     def copy(self):
         """Return a copy of this organ without a parent (parent set later)."""
         return self.__class__(self.position[:], self.size)  # Make sure position is copied (new list)
+    
+    def copy_mutate(self):
+        new_pos = [self.position[0] + random.randint(-2, 2),
+                self.position[1] + random.randint(-2, 2)]
+        new_size = max(1, self.size + random.randint(-1, 1))
+        return self.__class__(new_pos, new_size)
 
     def get_absolute_position(self):
         """Calculate absolute position using parent's position and single-angle direction."""
@@ -59,6 +66,19 @@ class Organ:
         abs_y = self.parent.position[1] + rotated_y
 
         return [abs_x, abs_y]
+    
+    def die(self):
+        if not self.parent or not self.parent.isAlive:
+            return
+
+        self.isAlive = False
+
+        self.parent.sprite_id = self.parent.compute_sprite_id()
+        self.parent.mass = self.parent.calculate_mass()
+        self.parent.com = self.parent.calculate_com()
+        self.parent.rotational_inertia = self.parent.calculate_rotational_inertia()
+
+        print(f"🩸 Organ {self.type} destroyed on Creature {self.parent.id}")
 
     def to_dict(self):
         return {"type": self.type, "position": self.position, "size": self.size}
