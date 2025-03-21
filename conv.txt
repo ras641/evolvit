@@ -1,0 +1,24 @@
+Property				Unit					Convention
+Distance (Position, Size, Movement)	Pixels					The world is measured in pixels. Each unit = 1 pixel.
+Direction (Rotation, Angles)		Radians					Rotation is stored in radians (0 to 2π). 0 rad = Right (East), π/2 = Down (South).
+Rotation Direction			Counterclockwise			Positive values rotate counterclockwise, negative rotates clockwise.
+Velocity (Linear, Angular)		Pixels per frame, Radians per frame	Movement is measured in pixels per frame, rotation in radians per frame.
+Time					Frames					All time-based values (cooldowns, decay, movement, lifespan) are in frames.
+Mass					Arbitrary mass units			Mass = area (density = 1), meaning bigger creatures have more inertia.
+Energy					Arbitrary energy units			1 unit of energy ≈ 1 frame of basic survival.
+Simulation Step Time			1 frame = 1/30 sec			Default simulation runs at 30 FPS.
+
+📍 Coordinate System
+Axis					Direction
+X-axis					Increases to the right (East)
+Y-axis					Increases downward (South)
+Rotation (θ = 0 rad)			Points Right (East)
+🔄 Physics Conventions
+Property				Unit					Convention
+Linear Velocity				Pixels per frame			velocity = [vx, vy] (movement per frame in X, Y)
+Angular Velocity			Radians per frame			angular_velocity (rotation per frame)
+Rotational Inertia (I)			Mass × (distance²)			Σ(m × r²) (based on Center of Mass)
+Force Application			Global Space				Forces are applied in world coordinates, not relative to the creature.
+Flipper Force				Pixels/frame²				Applied in the direction the creature is facing.
+Collision Bounces			Mass & Momentum-Based			Uses mass ratio for velocity exchange.
+Friction / Drag				Velocity decay per frame		Slowly reduces momentum over time.
