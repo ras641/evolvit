@@ -1,216 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Creature Simulation Visualizer</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #222;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        #main {
-            position: relative;
-            width: 500px;
-            height: 500px;
-        }
-        canvas {
-            display: block;
-            background: #333333;
-            width: 500px;
-            height: 500px;
-        }
-        #sidebar {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 120px;
-            height: 100vh;
-            overflow-y: auto;
-            background: #111;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        #info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Creature Simulation Visualizer</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #main {
+      position: relative;
+      width: 500px;
+      height: 500px;
+    }
+    canvas {
+      display: block;
+      background: #333333;
+      width: 500px;
+      height: 500px;
+    }
+    #sidebar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 120px;
+      height: 100vh;
+      overflow-y: auto;
+      background: #111;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+  </style>
 </head>
 <body>
-    
-    <div id="info">Loading...</div>
-    <canvas id="canvas" width="500" height="500"></canvas>
-    <div id="sidebar"></div>
+  <div id="info">Loading...</div>
+  <canvas id="canvas" width="500" height="500"></canvas>
+  <div id="sidebar"></div>
 
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const infoDiv = document.getElementById('info');
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const infoDiv = document.getElementById('info');
 
-        const sprites = {};                // Preloaded organ sprites
-        const spriteStore = {};            // sprite_id -> { image: Image or Canvas }
-        const creatureStore = {};          // creature_id -> creature object
-        const foodStore = [];              // array of [x, y] positions
+    const spriteStore = {}; // sprite_id -> { layout: string }
+    const creatureStore = {}; // creature_id -> creature object
+    const foodStore = [];
 
-        async function loadSprite(name, src) {
-            return new Promise(resolve => {
-                const img = new Image();
-                img.onload = () => { sprites[name] = img; resolve(); };
-                img.src = src;
+    async function fetchSprites() {
+        try {
+            const response = await fetch('/api/getsprites');
+            const data = await response.json();
+
+            data.forEach(({ id, layout }) => {
+            if (layout) {
+                spriteStore[String(id)] = { layout };
+            }
             });
-        }
 
-        async function preloadSprites() {
-            await Promise.all([
-                loadSprite('body', '/sprites/body.png'),
-                loadSprite('eye', '/sprites/eye.png'),
-                loadSprite('flipper', '/sprites/flipper.png'),
-                loadSprite('food', '/sprites/food.png'),
-                loadSprite('mouth', '/sprites/mouth.png'),
-                loadSprite('spike', '/sprites/spike.png')
-            ]);
-            console.log('✅ Organ sprites loaded!');
+            //console.log('✅ SpriteStore now has:', spriteStore);
+            //drawDebugSprites();
+        } catch (err) {
+            console.error('❌ Failed to fetch sprites:', err);
         }
+    }
 
-        async function fetchSprites() {
-            try {
-                const response = await fetch('/api/getsprites');
-                const data = await response.json();
-                data.forEach(({ id, svg }) => {
-                    const img = new Image();
-                    img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
-                    spriteStore[id] = { image: img };
-                });
-                console.log('✅ SVG sprites fetched and stored');
-                drawDebugSprites();
-            } catch (err) {
-                console.error('❌ Failed to fetch sprites:', err);
+    async function fetchState() {
+      try {
+        const response = await fetch('/api/getstate');
+        const data = await response.json();
+
+        if (Array.isArray(data.creatures)) {
+          const receivedCreatureIds = new Set();
+          data.creatures.forEach(creature => {
+            const id = String(creature.id);
+            creatureStore[id] = creature;
+            receivedCreatureIds.add(id);
+          });
+          Object.keys(creatureStore).forEach(id => {
+            if (!receivedCreatureIds.has(id)) {
+              delete creatureStore[id];
             }
+          });
         }
 
-        async function fetchState() {
-            try {
-                const response = await fetch('/api/getstate');
-                const data = await response.json();
-
-                if (Array.isArray(data.creatures)) {
-                    const receivedCreatureIds = new Set();
-                    data.creatures.forEach(creature => {
-                        const id = String(creature.id);
-                        creatureStore[id] = creature;
-                        receivedCreatureIds.add(id);
-                    });
-                    Object.keys(creatureStore).forEach(id => {
-                        if (!receivedCreatureIds.has(id)) {
-                            delete creatureStore[id];
-                        }
-                    });
-                    render();
-                }
-
-                if (Array.isArray(data.food)) {
-                    foodStore.length = 0;
-                    data.food.forEach(pos => foodStore.push(pos));
-                }
-            } catch (error) {
-                console.error('Failed to fetch state:', error);
-            }
+        if (Array.isArray(data.food)) {
+          foodStore.length = 0;
+          data.food.forEach(pos => foodStore.push(pos));
         }
 
-        function drawDebugSprites() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.innerHTML = '';
-            const spriteIDs = Object.keys(spriteStore);
-            spriteIDs.forEach(id => {
-                const sprite = spriteStore[id].image;
-                if (sprite) {
-                    const container = document.createElement('div');
-                    container.style.marginBottom = '10px';
-                    container.style.textAlign = 'center';
+        render();
+      } catch (error) {
+        console.error('Failed to fetch state:', error);
+      }
+    }
 
-                    const img = new Image();
-                    img.src = sprite.src;
-                    img.width = 100;
-                    img.height = 100;
+    function drawLayoutOnContext(layoutString, ctx, facing = 0) {
+        // Normalize colon format to match the others
+        const normalized = layoutString.replace(/:/g, ',');
 
-                    const label = document.createElement('div');
-                    label.innerText = id;
-                    label.style.color = 'white';
-                    label.style.fontSize = '12px';
-                    label.style.marginTop = '2px';
+        const organs = layoutString.split('|').map(part => {
+            const [type, x, y, size] = part.split(',').map((v, i) => i < 1 ? v : parseFloat(v));
+            return { type, x, y, size };
+        });
 
-                    container.appendChild(img);
-                    container.appendChild(label);
-                    sidebar.appendChild(container);
-                }
-            });
-        }
+        const body = organs.find(o => o.type === 'body');
+        if (!body) return;
 
-        function drawCreature(creature) {
-            const [x, y] = creature.position;
-            const facing = creature.direction;
+        ctx.save();
+        ctx.rotate(facing);
 
-            const spriteData = spriteStore[creature.sprite_id];
-            const sprite = spriteData ? spriteData.image : null;
-            const spriteSize = sprite ? sprite.width : 50;
-            const center = spriteSize / 2;
 
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(facing);
 
-            if (sprite) {
-                ctx.drawImage(sprite, -center, -center);
-            } else {
-                ctx.fillStyle = "gray";
-                ctx.fillRect(-center, -center, spriteSize, spriteSize);
-            }
+        organs.forEach(organ => {
+            if (organ.type === 'body') return;
 
-            ctx.restore();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(body.x, body.y);
+            ctx.lineTo(organ.x, organ.y);
+            ctx.stroke();
 
-            ctx.fillStyle = 'white';
-            ctx.font = '10px Arial';
+            ctx.fillStyle = {
+            eye: 'white',
+            mouth: 'yellow',
+            flipper: 'orange',
+            spike: 'red'
+            }[organ.type] || 'gray';
+
+            ctx.beginPath();
+            ctx.arc(organ.x, organ.y, organ.size, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+
+        // Draw body
+        ctx.fillStyle = 'blue';
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, 8, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function drawCreature(creature) {
+        const [x, y] = creature.position;
+        const angle = creature.direction; // ✅ already in radians
+
+        const layoutData = spriteStore[creature.sprite_id];
+        if (!layoutData) {
+
+            ctx.fillStyle = 'grey';
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.fillStyle = 'red';
+            ctx.font = '30px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(`${creature.id} (${creature.sprite_id})`, x, y);
+            ctx.fillText("?", x, y + 10);
+
+            return
         }
 
-        function drawFood(pos) {
-            const [x, y] = pos;
-            const sprite = sprites['food'];
-            const foodSize = 8;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        drawLayoutOnContext(layoutData.layout, ctx);
+        ctx.restore();
 
-            ctx.drawImage(
-                sprite,
-                x - foodSize / 2,
-                y - foodSize / 2,
-                foodSize,
-                foodSize
-            );
+        ctx.fillStyle = 'white';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${creature.id} (${creature.sprite_id})`, x, y);
         }
 
-        function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawDebugSprites();
-            foodStore.forEach(drawFood);
-            Object.values(creatureStore).forEach(drawCreature);
-            infoDiv.innerHTML = `<strong>Population:</strong> ${Object.keys(creatureStore).length}`;
-        }
+    function drawFood(pos) {
+      const [x, y] = pos;
+      ctx.fillStyle = 'green';
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
 
-        (async () => {
-            await preloadSprites();
-            await fetchSprites();
-            console.log('✅ Ready and running');
-            setInterval(fetchState, 33);
-            setInterval(fetchSprites, 50);
-        })();
-    </script>
+    function drawDebugSprites() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.innerHTML = '';
+        const spriteIDs = Object.keys(spriteStore);
+
+        spriteIDs.forEach(id => {
+            const layout = spriteStore[id].layout;
+            if (!layout) return;
+
+            const container = document.createElement('div');
+            container.style.marginBottom = '10px';
+            container.style.textAlign = 'center';
+
+            const mini = document.createElement('canvas');
+            mini.width = 100;
+            mini.height = 100;
+            mini.style.width = '100px';   // ✅ ensure no CSS scaling
+            mini.style.height = '100px';
+
+            const miniCtx = mini.getContext('2d');
+            miniCtx.translate(50, 50); // ✅ Move everything right & down by 50px
+
+            // Draw raw positions, centered in 100x100 if needed
+            drawLayoutOnContext(layout, miniCtx, 0);
+
+            const label = document.createElement('div');
+            label.innerText = id;
+            label.style.color = 'white';
+            label.style.fontSize = '12px';
+            label.style.marginTop = '2px';
+
+            container.appendChild(mini);
+            container.appendChild(label);
+            sidebar.appendChild(container);
+        });
+    }
+
+
+
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      foodStore.forEach(drawFood);
+      Object.values(creatureStore).forEach(drawCreature);
+      infoDiv.innerHTML = `<strong>Population:</strong> ${Object.keys(creatureStore).length}`;
+    }
+
+    (async () => {
+      await fetchSprites();
+      console.log('✅ Ready and running');
+      setInterval(fetchState, 33);
+      setInterval(fetchSprites, 1000); // You could reduce this if sprite layout rarely changes
+    })();
+  </script>
 </body>
 </html>

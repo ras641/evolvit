@@ -12,8 +12,6 @@ from .creatures import *
 
 def simulation_loop():
 
-    global frame_count
-
     while True:
 
         Creature.force_log.clear()
@@ -24,9 +22,13 @@ def simulation_loop():
 
         config.frame_count += 1
 
-        if len(Creature.creatures) == 0 and False:
+        if len(Creature.creatures) == 0:
 
-            initialize_simulation()
+            #initialize_simulation()
+
+            print (f"lasted {config.frame_count} frames")
+
+            input('')
 
 def start_simulation():
 
@@ -56,7 +58,8 @@ def initialize_simulation():
 
         Creature.creatures.append(Creature(position=[100, 250], organs=[
             {"type": "flipper", "position": [-30, 0], "size": 5},
-            {"type": "spike", "position": [25, 0], "size": 5}
+            {"type": "mouth", "position": [25, 0], "size": 5},
+            {"type": "spike", "position": [0, 20], "size": 5}
             
         ]))
         
@@ -78,6 +81,11 @@ def initialize_simulation():
             
             {"type": "flipper", "position": [-30, 30], "size": 5}
             
+        ]))
+
+        Creature.creatures.append(Creature(position=[400, 400], organs=[
+            {"type": "flipper", "position": [-30, 0], "size": 5},
+            {"type": "mouth", "position": [25, 0], "size": 5}
         ]))
         
 

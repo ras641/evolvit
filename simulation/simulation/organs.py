@@ -78,7 +78,7 @@ class Organ:
         self.parent.com = self.parent.calculate_com()
         self.parent.rotational_inertia = self.parent.calculate_rotational_inertia()
 
-        print(f"🩸 Organ {self.type} destroyed on Creature {self.parent.id}")
+        if PRINT: print(f"🩸 Organ {self.type} destroyed on Creature {self.parent.id}")
 
     def to_dict(self):
         return {"type": self.type, "position": self.position, "size": self.size}
@@ -138,3 +138,6 @@ class Spike(Organ):
     def __init__(self, position, size, parent=None):
         super().__init__(position, size, parent)
         self.type = "spike"
+    def simulate(self):
+        """Try to eat any nearby food based on organ's position."""
+        self.parent.energy -= (0.01 * self.size)
