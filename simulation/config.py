@@ -10,7 +10,7 @@ BODY_RADIUS = 8
 
 PRINT = 0
 
-SVG = False
+SVG = True
 
 # Simulation Settings
 
@@ -29,6 +29,7 @@ FOOD_STEP = 0.01
 
 #Physics
 FRICTION = 0.99
+ANGULAR_FRICTION = 0.95
 FRICTION_STEP = 5
 
 DEBUG = False

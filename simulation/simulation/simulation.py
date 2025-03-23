@@ -1,54 +1,112 @@
 import threading
 import time
-from simulation.creatures import Creature
-from simulation.food import food_spawning_loop
+from .creatures import Creature
+from .world import creatures, creatures_lock, cell_grid
+from .food import food_spawning_loop
+
+#from .creatures import Creature
+
+from .cell import Cell
 
 import os
 import shutil
 
-import config
+import simulation.config as config
 
-from .creatures import *
+GRID_WIDTH = 10
+GRID_HEIGHT = 10
+
+# Create 2D array (grid[y][x])
+#cell_grid = [[Cell(x, y) for x in range(GRID_WIDTH)] for y in range(GRID_HEIGHT)]
 
 def simulation_loop():
 
+    import simulation.simulation.world as world
+
     while True:
 
-        Creature.force_log.clear()
+        world.cell_grid[0][0].run_creatures()
+        world.cell_grid[0][0].run_collisions()
 
-        Creature.run_creatures()  # ✅ Run all creature updates inside the class
-
-        time.sleep(SIMULATION_SPEED)
+        time.sleep(config.SIMULATION_SPEED)
 
         config.frame_count += 1
 
-        if len(Creature.creatures) == 0:
+def initialize_cell_grid():
+    print("📦 Inside initialize_cell_grid()")
+    grid = []
+    for x in range(10):
+        row = []
+        for y in range(10):
+            row.append(Cell(x, y))
+        grid.append(row)
 
-            #initialize_simulation()
+    grid[0][0].add(Creature(position=[100, 100], organs=[
+    ]))
 
-            print (f"lasted {config.frame_count} frames")
+    
 
-            input('')
+    grid[0][0].add(Creature(position=[100, 100], organs=[
+            {"type": "flipper", "position": [-30, 0], "size": 5},
+            {"type": "mouth", "position": [25, 0], "size": 5}
+        ]))
+    
+    grid[0][0].add(Creature(position=[400, 200], organs=[
+        {"type": "flipper", "position": [-30, 0], "size": 5},
+        {"type": "mouth", "position": [25, 0], "size": 5}
+    ]))
+
+    grid[0][0].add(Creature(position=[200, 300], organs=[
+        {"type": "flipper", "position": [-30, 0], "size": 5},
+        {"type": "mouth", "position": [25, 0], "size": 5}
+    ]))
+
+    grid[0][0].add(Creature(position=[300, 100], organs=[
+        {"type": "mouth", "position": [25, 0], "size": 5}
+    ]))
+    
+    grid[0][0].add(Creature(position=[100, 300], organs=[
+        {"type": "flipper", "position": [-30, 5], "size": 5},
+        {"type": "mouth", "position": [25, 0], "size": 5}
+    ]))
+
+    grid[0][0].add(Creature(position=[100, 250], organs=[
+        {"type": "flipper", "position": [-30, 0], "size": 5}
+    ]))
+
+    grid[0][0].add(Creature(position=[200, 250], organs=[
+        {"type": "mouth", "position": [25, 0], "size": 5}
+    ]))
+    
+    grid[0][0].add(Creature(position=[300, 250], organs=[
+        {"type": "mouth", "position": [-30, 0], "size": 5},
+        {"type": "mouth", "position": [25, 0], "size": 5}
+    ]))
+
+    grid[0][0].add(Creature(position=[400, 250], organs=[
+    ]))
+    
+    
+
+    import simulation.simulation.world as world
+    world.cell_grid = grid
+
+    print("✅ cell_grid assignment done.")
 
 def start_simulation():
 
-    # 🧹 Clear all files in the /sprites/ directory
-    sprite_dir = "./sprites"
-    if os.path.exists(sprite_dir):
-        for filename in os.listdir(sprite_dir):
-            file_path = os.path.join(sprite_dir, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)  # Delete file or symlink
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)  # Delete folder recursively
-            except Exception as e:
-                print(f"⚠️ Failed to delete {file_path}: {e}")
+    import simulation.simulation.world as world
+
+    initialize_cell_grid()
+
+    if world.cell_grid is None:
+        print("❌ cell_grid is still None!")
     else:
-        os.makedirs(sprite_dir)  # Create the folder if it doesn't exist
+        print(f"✅ cell_grid initialized with size {len(world.cell_grid)}x{len(world.cell_grid[0])}")
 
-    initialize_simulation()
+    #world.cell_grid[0][0].print_info()
 
+    time.sleep(1)
     threading.Thread(target=simulation_loop, daemon=True).start()
     threading.Thread(target=food_spawning_loop, daemon=True).start()
 

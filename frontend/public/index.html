@@ -63,14 +63,25 @@
             const response = await fetch('/api/getsprites');
             const data = await response.json();
 
+            // Build a new set of current sprite IDs
+            const receivedIds = new Set();
+
             data.forEach(({ id, layout }) => {
-            if (layout) {
-                spriteStore[String(id)] = { layout };
-            }
+                if (layout) {
+                    const key = String(id);
+                    receivedIds.add(key);
+                    spriteStore[key] = { layout };
+                }
             });
 
-            //console.log('✅ SpriteStore now has:', spriteStore);
-            //drawDebugSprites();
+            // Remove any keys in spriteStore that weren't received
+            Object.keys(spriteStore).forEach(key => {
+                if (!receivedIds.has(key)) {
+                    delete spriteStore[key];
+                }
+            });
+
+            drawDebugSprites();
         } catch (err) {
             console.error('❌ Failed to fetch sprites:', err);
         }
@@ -197,7 +208,11 @@
     function drawDebugSprites() {
         const sidebar = document.getElementById('sidebar');
         sidebar.innerHTML = '';
-        const spriteIDs = Object.keys(spriteStore);
+
+        const spriteIDs = Object.keys(spriteStore)
+            .map(id => parseInt(id))
+            .sort((a, b) => b - a) // Descending (newest first)
+            .slice(0, 5); 
 
         spriteIDs.forEach(id => {
             const layout = spriteStore[id].layout;

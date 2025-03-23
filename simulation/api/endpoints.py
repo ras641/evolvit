@@ -1,24 +1,75 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 import uuid
 import os
 
-from simulation.creatures import Creature
 
-from simulation.creatures import sprite_lock
+
 
 api_bp = Blueprint('api', __name__)
 
+
+
+@api_bp.route('/viewer')
+def viewer_page():
+    from simulation.simulation.world import cell_grid
+    """Render the canvas viewer with live creature/food state injected."""
+    from simulation.simulation.creatures import Creature
+    cell = cell_grid[0][0]
+    with cell.lock:
+        creatures = [c.to_dict() for c in cell.creatures]
+        food = [f.to_dict() for f in cell.food]
+
+    #print (Creature.sprite_map)
+
+    return render_template("viewer.html", sprites=Creature.sprite_map, creatures=creatures, food=food)
+
+
+@api_bp.route('/viewer/data')
+def viewer_data():
+    from simulation.simulation.world import cell_grid
+    from simulation.simulation.creatures import Creature
+
+    cell = cell_grid[0][0]
+    with cell.lock:
+        creatures = [c.to_dict() for c in cell.creatures]
+        food = [f.to_dict() for f in cell.food]
+
+    sprites = {}
+    with Creature.sprite_lock:
+        for sid, layout in Creature.sprite_map.items():
+            if isinstance(layout, dict):
+                layout = layout.get("layout")
+            sprites[sid] = layout
+
+    return jsonify({
+        "creatures": creatures,
+        "food": food,
+        "sprites": sprites
+    })
+
+
 @api_bp.route('/getstate', methods=['GET'])
 def get_state():
-    """Get current state of all creatures and food."""
-    from simulation.food import food, food_lock  # Avoid circular import
 
-    with Creature.creatures_lock, food_lock:
-        return jsonify({
-            "creatures": [c.to_dict() for c in Creature.creatures],
-            "food": [f.to_dict() for f in food]
-        })
-    
+    from simulation.simulation.world import cell_grid
+    """Get current state of all creatures and food in a specific cell."""
+    #from simulation.world import food, food_lock  # Avoid circular import
+    x = request.args.get('x', type=int)
+    y = request.args.get('y', type=int)
+
+    if x is not None and y is not None:
+        
+        if not cell_grid:
+            return jsonify({'status': 'error', 'message': 'Cell not found'}), 404
+        with cell_grid[x][y].lock:
+            return jsonify({
+                "creatures": [c.to_dict() for c in cell_grid[x][y].creatures],
+                "food": [f.to_dict() for f in cell_grid[x][y].food]
+            })
+        
+    else:
+        return jsonify({'status': 'error', 'message': 'Please specify x and y position of cell'}), 404
+        
 @api_bp.route('/getforces', methods=['GET'])
 def get_forces():
     """Get all forces applied to creatures in the last frame."""
@@ -44,14 +95,14 @@ def get_creatures():
 @api_bp.route('/getsprites', methods=['GET'])
 def get_sprites():
     """Return all sprite layouts by sprite ID."""
+
+    import simulation.simulation.creatures as creature_mod  # lazy full module import
+
     layout_data = []
 
-    with sprite_lock:
-        for sprite_id, value in Creature.sprite_map.items():
-            if isinstance(value, dict):
-                layout = value.get("layout")
-            else:
-                layout = value  # If stored as raw string only
+    with creature_mod.Creature.sprite_lock:
+        for sprite_id, value in creature_mod.Creature.sprite_map.items():
+            layout = value.get("layout") if isinstance(value, dict) else value
 
             layout_data.append({
                 "id": sprite_id,
@@ -59,6 +110,7 @@ def get_sprites():
             })
 
     return jsonify(layout_data)
+
 
 @api_bp.route('/uploadcreature', methods=['POST'])
 def upload_creature():

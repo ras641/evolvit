@@ -1,12 +1,12 @@
 import random
 import math
-from simulation.organs import Organ
-from simulation.food import food, food_lock, Food
+from .organs import Organ
+from .world import food, food_lock
 import threading
 
 import os
 
-from config import *
+from simulation.config import *
 
 
 sprite_lock = threading.Lock()
@@ -20,6 +20,7 @@ class Creature:
 
     sprite_map = {}  # {sprite_id: serialized_organs}
     sprite_counter = 0  # For assigning unique sprite IDs
+    sprite_lock = threading.Lock()
 
     creatures = []  # ✅ Static list for all creatures
     creatures_lock = threading.Lock()  # ✅ Thread-safe locking
@@ -303,6 +304,7 @@ class Creature:
         self.direction = 0  # radians
         self.isAlive = True
         self.organs = []
+        self.cell = None
 
         self.velocity = [0, 0]
         self.angular_velocity = 0
@@ -364,6 +366,28 @@ class Creature:
 
                 print(f"✅ organ_pos: {organ.position}")
 
+    def print_info(self):
+        print(f"\n📘 Creature Info: {self.name} (ID: {self.id})")
+        print(f"├── Alive: {self.isAlive}")
+        print(f"├── Position: {self.position}")
+        print(f"├── Velocity: {self.velocity}")
+        print(f"├── Angular Velocity: {self.angular_velocity}")
+        print(f"├── Direction (radians): {self.direction}")
+        print(f"├── Energy: {self.energy}")
+        print(f"├── Age: {self.age}")
+        print(f"├── Mass: {self.mass}")
+        print(f"├── Rotational Inertia: {self.rotational_inertia}")
+        print(f"├── Mutation Rate: {self.mutation_rate}")
+        print(f"├── User Created: {self.user_created}")
+        print(f"├── Generation: {self.generation}")
+        print(f"├── Parent IDs: {self.parent_ids}")
+        print(f"├── Sprite ID: {self.sprite_id}")
+        print(f"├── Body COM Offset: {self.body_pos}")
+        print(f"└── Organs ({len(self.organs)} total):")
+        for i, organ in enumerate(self.organs):
+            status = "Alive" if organ.isAlive else "Dead"
+            print(f"    ├─ #{i}: {organ.__class__.__name__} | Pos: {organ.position} | Size: {organ.size} | {status}")
+
     def validate_organs(self):
         """Check if organs are within bounds, not overlapping the body or other organs."""
 
@@ -419,7 +443,7 @@ class Creature:
         return f"body,{bx},{by}|{organ_str}"
 
 
-    def compute_sprite_id(self, generate_svg=False):
+    def compute_sprite_id(self):
         """Assign or reuse sprite ID based on serialized organ layout, and optionally generate SVG."""
         serialized = self.serialize_organs()
 
@@ -562,8 +586,9 @@ class Creature:
         self.position[0] = (self.position[0] + speed) % 500
 
     def run_organs(self):
+        #print(f"🎛️ Running organs for Creature {self.id}")
         for organ in self.organs:
-            if not organ.isAlive: continue
+            #print(f"🧩 {organ.type} simulating...")
             organ.simulate()
 
     def update_position(self):
@@ -580,7 +605,7 @@ class Creature:
         if frame_count % FRICTION_STEP == 0:
             self.velocity[0] *= FRICTION
             self.velocity[1] *= FRICTION
-            self.angular_velocity *= (FRICTION ** 2)
+            self.angular_velocity *= ANGULAR_FRICTION
 
             # ✅ Kill creature if it spins too fast
             if abs(self.angular_velocity) > MAX_AV:
@@ -588,6 +613,8 @@ class Creature:
 
         # ✅ Basal metabolic cost
         self.energy -= BMR
+
+        if self.energy <= 0: self.die()
 
     def reproduce(self):
         """Creates a new creature by cloning, with passive mutations (e.g., organs mutate on copy)."""
@@ -644,7 +671,11 @@ class Creature:
                 food_y = min(max(self.position[1] + offset_y, 0), 499)
 
                 # Spawn new food at the calculated position
-                food.append(Food([food_x, food_y]))
+                #food.append(Food([food_x, food_y]))
+
+        if self.cell:
+            self.cell.remove(self)  # ✅ actually removes it from the world
+        self.cell = None
 
         self.isAlive = False  # Mark creature as dead
 
@@ -653,9 +684,9 @@ class Creature:
 
         num_mutations = max(1, int(self.mutation_rate + random.choice([-1, 0, 1])))
 
-        num_mutations = random.randint(0,5)
+        num_mutations = random.randint(1,5)
 
-        mutation_options = ["organs", "mutation_rate"]
+        mutation_options = ["organs"]
 
         for _ in range(num_mutations):
             mutation_type = random.choice(mutation_options)
@@ -724,5 +755,5 @@ class Creature:
                 f"to position {organ.position}, size {organ.size}")
 
     def to_dict(self):
-        return {"id": self.id, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id}
+        return {"id": self.id, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "isAlive": self.isAlive}
 

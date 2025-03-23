@@ -1,9 +1,7 @@
 import random
 import math
+from simulation.config import *
 
-from .food import food_lock, food
-
-from config import *
 
 class Organ:
     allowed_types = ["mouth", "eye", "flipper", "spike"]
@@ -68,15 +66,35 @@ class Organ:
         return [abs_x, abs_y]
     
     def die(self):
+        return
         if not self.parent or not self.parent.isAlive:
             return
 
         self.isAlive = False
 
-        self.parent.sprite_id = self.parent.compute_sprite_id()
+        # ✅ Calculate mass first
         self.parent.mass = self.parent.calculate_mass()
-        self.parent.com = self.parent.calculate_com()
+
+        # ✅ Calculate center of mass (from organ layout)
+        self.parent.body_pos = self.parent.calculate_com()
+
+        # print (self.body_pos)
+
+        # ✅ Shift all organ positions so COM is now origin
+        for organ in self.parent.organs:
+            if not organ.isAlive: continue
+            organ.position[0] += self.parent.body_pos[0]
+            organ.position[1] += self.parent.body_pos[1]
+
+        # ✅ Since we centered organs around COM, update self.position to be world COM
+        self.position[0] += self.parent.body_pos[0]
+        self.position[1] += self.parent.body_pos[1]
+
+        # ✅ Now recalculate rotational inertia (based on new COM-relative organ positions)
         self.parent.rotational_inertia = self.parent.calculate_rotational_inertia()
+
+        # ✅ Sprite generation (after validation and adjustment)
+        self.parent.sprite_id = self.parent.compute_sprite_id()
 
         if PRINT: print(f"🩸 Organ {self.type} destroyed on Creature {self.parent.id}")
 
@@ -85,25 +103,53 @@ class Organ:
 
 # ----- Specific Organ Types -----
 class Mouth(Organ):
+
+
     def __init__(self, position, size, parent=None):
         super().__init__(position, size, parent)
         self.type = "mouth"
 
     def simulate(self):
-        """Try to eat any nearby food based on organ's position."""
+        #print(f"[Mouth] Simulating for Creature {self.parent.id if self.parent else '?'}")
+
+        if not self.parent or not self.parent.cell:
+            print("[Mouth] No parent or no cell")
+            return
+        if not self.isAlive:
+            return
+
         mouth_pos = self.get_absolute_position()
+        #print(f"[Mouth] Position: {mouth_pos}")
 
-        with food_lock:  # ✅ Thread-safe food access
-            for food_obj in food[:]:  # ✅ Safe copy of the list for iteration
-                food_pos = food_obj.position
-                distance = math.hypot(mouth_pos[0] - food_pos[0], mouth_pos[1] - food_pos[1])
+        #print(f"[Mouth] Cell: {self.parent.cell}")
+        #print(f"[Mouth] Cell type: {type(self.parent.cell)}")
 
-                food_radius = 4  # ✅ Matches the JavaScript rendering logic
-                if distance <= self.size + food_radius:  # ✅ Adjusted to include food's radius
-                    self.parent.energy += 20  # ✅ Adjust energy gain as needed
-                    food.remove(food_obj)  # ✅ Remove food from global list
-                    if PRINT: print(f"🍽️ Creature {self.parent.id} ate food at {food_pos} (Energy: {self.parent.energy})")
-                    #break  # ✅ Only eat one food per simulation frame
+        #print(f"[Mouth] Cell has lock? {'lock' in dir(self.parent.cell)}")
+
+        cell = self.parent.cell
+
+        try:
+            with cell.lock:
+                food_list = cell.food[:]
+        except Exception as e:
+            #print(f"[Mouth] Lock failed: {e}")
+            return
+
+        for food_obj in food_list:
+            food_pos = food_obj.position
+            dist = math.hypot(mouth_pos[0] - food_pos[0], mouth_pos[1] - food_pos[1])
+            #print(f"[Mouth] Distance to food: {dist}")
+
+            if dist <= self.size + 4:
+                try:
+                    with cell.lock:
+                        if food_obj in cell.food:
+                            cell.food.remove(food_obj)
+                            self.parent.energy += 20
+                            #print(f"[Mouth] Ate food at {food_pos}")
+                    break
+                except Exception as e:
+                    print(f"[Mouth] Error removing food: {e}")
 
 class Eye(Organ):
     def __init__(self, position, size, parent=None):
@@ -119,6 +165,9 @@ class Flipper(Organ):
         """Apply force in the direction the creature is facing (world space)."""
         if not self.parent:
             return  # Organ must be attached to a creature
+        
+        if not self.isAlive:
+            return
 
         # ✅ Use absolute position of the flipper in world space
         world_position = self.get_absolute_position()
@@ -140,4 +189,4 @@ class Spike(Organ):
         self.type = "spike"
     def simulate(self):
         """Try to eat any nearby food based on organ's position."""
-        self.parent.energy -= (0.01 * self.size)
+        self.parent.energy -= (0.001 * self.size)

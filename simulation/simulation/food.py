@@ -1,12 +1,10 @@
 import random
 import time
 import threading
-
+import traceback
 import math
-import config
+import simulation.config as config
 
-food = []
-food_lock = threading.Lock()
 
 class Food:
     def __init__(self, position):
@@ -15,50 +13,81 @@ class Food:
     def to_dict(self):
         return self.position
 
+
 def food_spawning_loop():
 
-    from simulation.creatures import Creature
-
-    for _ in range(50):
-        if len(food) < config.MAX_FOOD:
-            new_food = Food(position=[random.randint(0, 499), random.randint(0, 499)])
-            food.append(new_food)
-
-    food_spawn_accumulator = 0.0  # Tracks spawn progress over multiple updates
-    last_time = time.time()  # Track real-world time
-
-
-    # Base simulation FPS (acts as a normalizing factor)
-    MIN_ELAPSED_TIME = 1 / 1000  # Ensure updates contribute at very high FPS
-    MAX_ELAPSED_TIME = 1 / 10    # Prevent extreme lag-induced jumps
+    import simulation.simulation.world as world
+    cell = world.cell_grid[0][0]
 
     while True:
-        num_creatures = Creature.get_creature_count()  # Thread-safe class method
+        if len(cell.food) < config.MAX_FOOD:
 
-        config.FOOD_SPAWN_INTERVAL = 40 + 0.1 * (num_creatures ** 2)
+            new_food = Food(position=[
+                random.randint(0, 499),
+                random.randint(0, 499)
+            ])
+            
+            with cell.lock:
+                cell.add(new_food)
 
-        time.sleep(config.FOOD_STEP)  # ✅ Prevent excessive CPU usage
+        time.sleep(0.1 * len(cell.creatures) * (30/config.FPS))
 
-        # 🔥 Get real elapsed time but normalize it
-        current_time = time.time()
-        elapsed_time = current_time - last_time
-        last_time = current_time
+def food_spawning_loop2():
+    return
+    import simulation.simulation.world as world
 
-        # 🔥 Clamp to prevent too small/large updates
-        elapsed_time = max(MIN_ELAPSED_TIME, min(elapsed_time, MAX_ELAPSED_TIME))
+    food_spawn_accumulator = 0.0
+    loop_counter = 0
 
-        # 🔥 Normalize for high-FPS consistency (scaling factor ensures contribution even at high FPS)
-        normalized_elapsed = elapsed_time * config.FPS  # This makes behavior FPS-independent
-        food_spawn_accumulator += normalized_elapsed / config.FOOD_SPAWN_INTERVAL
+    while True:
+        try:
+            # ✅ Accumulate spawn potential
+            food_spawn_accumulator += 10
+            spawn_count = int(food_spawn_accumulator)
+            food_spawn_accumulator -= spawn_count
 
-        with food_lock:
-            spawn_count = int(food_spawn_accumulator)  # Ensure food spawns when accumulation reaches 1.0
-            food_spawn_accumulator -= spawn_count  # Retain remainder for next loop
+            new_food_list = []
 
-            #print(f"Spawning {spawn_count} food items (Accumulator: {food_spawn_accumulator})")
-
+            # ✅ Create food objects without holding locks
             for _ in range(spawn_count):
-                if len(food) < config.MAX_FOOD:
-                    new_food = Food(position=[random.randint(0, 499), random.randint(0, 499)])
-                    food.append(new_food)
+                if len(world.food) >= config.MAX_FOOD:
+                    break
+
+                new_food = Food(position=[
+                    random.randint(0, 499),
+                    random.randint(0, 499)
+                ])
+                new_food_list.append(new_food)
+
+            # ✅ Append to global food list (quick lock)
+            if new_food_list:
+                with world.food_lock:
+                    world.food.extend(new_food_list)
+
+            # ✅ Add to cell (separately)
+            for food_obj in new_food_list:
+                try:
+                    if world.cell_grid:
+                        x = min(int(food_obj.position[0] // 50), len(world.cell_grid) - 1)
+                        y = min(int(food_obj.position[1] // 50), len(world.cell_grid[0]) - 1)
+                        cell = world.cell_grid[x][y]
+                        with cell.lock:
+                            cell.add(food_obj)
+                            food_obj.cell = cell
+                    else:
+                        print("⚠️ cell_grid not initialized yet")
+                except Exception as e:
+                    print(f"❌ Error adding food to cell: {e}")
+                    traceback.print_exc()
+
+            # ✅ Print every second
+            loop_counter += 1
+            if loop_counter % 10 == 0:
+                print(f"🍏 Total food: {len(world.food)}")
+
+        except Exception as e:
+            print("🔥 CRITICAL: food_spawning_loop crashed")
+            traceback.print_exc()
+
+        time.sleep(0.1)
 

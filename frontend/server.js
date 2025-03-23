@@ -8,7 +8,7 @@ app.use(express.static('public'));
 // ✅ Existing getstate (no changes needed)
 app.get('/api/getstate', async (req, res) => {
     try {
-        const response = await axios.get('http://127.0.0.1:5000/getstate');
+        const response = await axios.get('http://127.0.0.1:5000/getstate?x=0&y=0');
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch state from backend' });

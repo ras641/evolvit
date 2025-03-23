@@ -1,6 +1,8 @@
 from flask import Flask
-from api.endpoints import api_bp
-from simulation.simulation import start_simulation
+from simulation.api.endpoints import api_bp
+
+from simulation.simulation.simulation import start_simulation
+
 
 app = Flask(__name__)
 
