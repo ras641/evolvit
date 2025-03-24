@@ -2,26 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
   <title>Creature Simulation Viewer</title>
   <style>
+
     html, body {
       margin: 0;
       padding: 0;
-      background: #000;
+      background: #444;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100%;
     }
-
-    iframe {
+    
+    canvas {
+      display: block;
+      background-color: #222;
       width: 500px;
       height: 500px;
-      border: none;
     }
+
   </style>
 </head>
   <body>
-    <iframe src="https://presentr.ai/viewer" id="viewer-frame"></iframe>
+    <h1>🌱 Evolvit WebView</h1>
+    <p>🧬 Creatures: <span id="creatureCount">?</span></p>
+    <p>🍎 Food: <span id="foodCount">?</span></p>
+    
+    <script type="application/javascript" src="script.js"></script>
   </body>
 </html>

@@ -2,12 +2,42 @@ import './createPost.js';
 
 import { Devvit, useState, useWebView } from '@devvit/public-api';
 
+//import { Devvit } from '@devvit/public-api';
+
 import type { DevvitMessage, WebViewMessage } from './message.js';
+
 
 Devvit.configure({
   redditAPI: true,
   redis: true,
+  http:true,
+  media: true
 });
+
+
+/*
+Devvit.addMenuItem({
+  location: 'comment',
+  label: 'Sample HTTP request',
+  onPress: async (_, context) => {
+    console.log(`Comment ID:  ${context.commentId}`);
+    const response = await fetch('https://presentr.ai/evolvit/', {
+      method: 'post',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content: context.commentId }),
+    });
+    context.ui.showToast(
+      `Invoked HTTP request on comment: ${context.commentId}. Completed with status: ${response.status}`
+    );
+  },
+});
+
+
+*/
+
+/*
 
 // Add a custom post type to Devvit
 Devvit.addCustomPostType({
@@ -95,5 +125,101 @@ Devvit.addCustomPostType({
     );
   },
 });
+
+*/
+
+Devvit.addCustomPostType({
+  name: 'Say Hello',
+  render: () => {
+    const [counter, setCounter] = useState(0)
+
+    const [data] = useState(async () => {
+      try {
+        const res = await fetch('https://presentr.ai/evolvit/getstate?x=0&y=0');
+        return await res.json();
+      } catch (err) {
+        return { error: 'Failed to fetch' };
+      }
+    });
+
+    const webView = useWebView({
+      url: 'page.html',
+      onMessage: async (message, webView) => {
+        if (message.type === 'webViewReady') {
+          // ✅ Reuse already-loaded data
+          if (!data.error) {
+            webView.postMessage({
+              type: 'stateUpdate',
+              data
+            });
+          } else {
+            webView.postMessage({
+              type: 'error',
+              data: { message: data.error }
+            });
+          }
+        }
+      }
+    });
+
+    return (
+      <vstack alignment='center middle' height='100%' gap='large'>
+        <text size='xxlarge' weight='bold'>
+          Hello! 👋
+        </text>
+
+        {data?.error ? (
+          <text color="red">❌ {data.error}</text>
+        ) : (
+          <>
+            <text>🧬 Creatures: {data?.creatures?.length ?? 0}</text>
+            <text>🍎 Food: {data?.food?.length ?? 0}</text>
+          </>
+        )}
+
+        <button onPress={() => webView.mount()}>Launch App</button>
+
+        <button
+          appearance='primary'
+          onPress={() => setCounter(counter => counter + 1)}
+        >
+          Click me!
+        </button>
+        {counter ? (
+          <text>{`You clicked ${counter} time(s)!`}</text>
+        ) : (
+          <text>&nbsp;</text>
+        )}
+        
+      </vstack>
+    )
+  }
+})
+
+/*
+
+Devvit.addMenuItem({
+  label: 'Check Simulation State',
+  location: 'post',
+  onPress: async (event, context) => {
+    const res = await fetch('https://presentr.ai/evolvit/getstate?x=0&y=0');
+    const data = await res.json();
+
+    const creatures = data.creatures?.length ?? 0;
+    const food = data.food?.length ?? 0;
+
+    context.ui.showToast(`${creatures} creatures, ${food} food`);
+  },
+});
+
+Devvit.addMenuItem({
+  label: 'Say Hello',
+  location: 'post',
+  onPress: async (_event, context) => {
+    context.ui.showToast('👋 Hello from Devvit!');
+  }
+});
+
+*/
 
 export default Devvit;
