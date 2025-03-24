@@ -4,8 +4,8 @@ from simulation.api.endpoints import api_bp
 from simulation.simulation.simulation import start_simulation
 
 from flask_cors import CORS
-CORS(app)
 app = Flask(__name__)
+CORS(app)
 
 # Register API routes
 app.register_blueprint(api_bp)
