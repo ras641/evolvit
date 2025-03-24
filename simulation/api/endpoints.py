@@ -2,8 +2,7 @@ from flask import Blueprint, jsonify, request, render_template
 import uuid
 import os
 
-from flask_cors import CORS
-CORS(app)
+
 
 
 api_bp = Blueprint('api', __name__)
