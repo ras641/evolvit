@@ -3,147 +3,133 @@
 <head>
   <title>Creature Viewer</title>
   <style>
-    canvas { image-rendering: pixelated; background: #333333;}
+    canvas {
+      image-rendering: pixelated;
+      background: #333333;
+      display: block;
+      margin: 0 auto;
+    }
+    body {
+      text-align: center;
+      color: white;
+      font-family: sans-serif;
+      background: #222;
+    }
   </style>
 </head>
 <body>
   <canvas id="world" width="500" height="500"></canvas>
-  <p id="info"></p>
 
-  <!-- ✅ Inject simulation state safely -->
   <script type="text/javascript">
-    
     let CREATURES = [];
     let FOOD = [];
     let SPRITES = {};
 
-    async function fetchData() {
-        try {
-            const res = await fetch("/viewer/data");
-            const data = await res.json();
-            CREATURES = data.creatures;
-            FOOD = data.food;
-            SPRITES = data.sprites;
-        } catch (err) {
-            console.error("State fetch error:", err);
-        }
-    }
-
-
     const canvas = document.getElementById("world");
     const ctx = canvas.getContext("2d");
 
-    function getColorForSprite(sprite_id) {
-      const colors = ["#3498db", "#e74c3c", "#2ecc71", "#f1c40f"];
-      return colors[sprite_id % colors.length] || "#999";
+    function drawFrame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw food
+      ctx.fillStyle = "green";
+      for (const [x, y] of FOOD) {
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+
+      // Draw creatures
+      for (const c of CREATURES) {
+        const angle = c.direction;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+
+        const layout = SPRITES[c.sprite_id];
+        if (!layout) continue;
+
+        const organs = layout.split("|").filter(Boolean).map(line => {
+          const [type, x, y, size] = line.split(",");
+          return {
+            type,
+            x: parseFloat(x),
+            y: parseFloat(y),
+            size: parseFloat(size),
+          };
+        });
+
+        const body = organs.find(o => o.type === "body") || { x: 0, y: 0 };
+        const body_rx = body.x * cos - body.y * sin;
+        const body_ry = body.x * sin + body.y * cos;
+        const cx = c.position[0] + body_rx;
+        const cy = c.position[1] + body_ry;
+
+        for (const organ of organs) {
+          if (organ.type === "body") continue;
+
+          const rx = organ.x * cos - organ.y * sin;
+          const ry = organ.x * sin + organ.y * cos;
+          const ox = c.position[0] + rx;
+          const oy = c.position[1] + ry;
+
+          // Color by organ type
+          switch (organ.type) {
+            case "spike": ctx.fillStyle = "red"; break;
+            case "mouth": ctx.fillStyle = "yellow"; break;
+            case "eye": ctx.fillStyle = "white"; break;
+            case "flipper": ctx.fillStyle = "orange"; break;
+            default: ctx.fillStyle = "#ccc"; break;
+          }
+
+          // Line from body to organ
+          ctx.strokeStyle = "#000";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(ox, oy);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(ox, oy, organ.size * 0.5, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+
+        // Draw body
+        ctx.fillStyle = "blue";
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+
     }
 
+    // 🔁 Fetch loop (async, every 200ms)
+    async function fetchLoop() {
+      while (true) {
+        try {
+          const res = await fetch("/evolvit/viewer/data");
 
-
-
-
-    function drawFrame() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw food
-        ctx.fillStyle = "green";
-        for (const [x, y] of FOOD) {
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, 2 * Math.PI); // radius is now 4
-        ctx.fill();
-}
-
-        // Draw creatures
-        for (const c of CREATURES) {
-            const angle = c.direction; // radians
-            const cos = Math.cos(angle);
-            const sin = Math.sin(angle);
-
-            const layout = SPRITES[c.sprite_id];
-            if (!layout) continue;
-
-            const organs = layout
-            .split("|")
-            .filter(Boolean)
-            .map(line => {
-                const parts = line.split(",");
-                const type = parts[0];
-                const x = parseFloat(parts[1]);
-                const y = parseFloat(parts[2]);
-                const size = parts.length > 3 ? parseFloat(parts[3]) : null;
-                return { type, x, y, size };
-            });
-
-            const body = organs.find(o => o.type === "body");
-            if (!body) continue;
-
-            const body_rx = body.x * cos - body.y * sin;
-            const body_ry = body.x * sin + body.y * cos;
-            const cx = c.position[0] + body_rx;
-            const cy = c.position[1] + body_ry;
-
-
-
-            // ✅ Draw organs
-            for (const organ of organs) {
-                if (organ.type === "body") continue;
-
-                const rx = organ.x * cos - organ.y * sin;
-                const ry = organ.x * sin + organ.y * cos;
-                const ox = c.position[0] + rx;
-                const oy = c.position[1] + ry;
-
-
-
-                // Color by organ type
-                switch (organ.type) {
-                    case "spike": ctx.fillStyle = "red"; break;
-                    case "mouth": ctx.fillStyle = "yellow"; break;
-                    case "eye": ctx.fillStyle = "white"; break;
-                    case "flipper": ctx.fillStyle = "orange"; break;
-                    default: ctx.fillStyle = "#ccc"; break;
-                }
-
-                // Line from body to organ
-                ctx.strokeStyle = "#000";
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(cx, cy);
-                ctx.lineTo(ox, oy);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.arc(ox, oy, organ.size * 0.5, 0, 2 * Math.PI);
-                ctx.fill();
-            }
-
-            // ✅ Draw body (always blue, radius 8)
-            ctx.fillStyle = "#3498db";
-            ctx.beginPath();
-            ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
-            ctx.fill();
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          CREATURES = data.creatures;
+          FOOD = data.food;
+          SPRITES = data.sprites;
+        } catch (err) {
+          console.error("Fetch error:", err);
         }
+        await new Promise(r => setTimeout(r, 1000)); // 5 FPS
+      }
+    }
 
-        document.getElementById("info").textContent =
-            `Creatures: ${CREATURES.length} | Food: ${FOOD.length}`;
-        }
+    // 🎥 Draw loop (aim for 60 FPS, browser controlled)
+    function drawLoop() {
+      drawFrame();
+      requestAnimationFrame(drawLoop);
+    }
 
-        drawFrame();
-
-
-        let lastFrameTime = 0;
-        const FRAME_INTERVAL = 1000 / 30;
-
-        async function drawLoop(timestamp) {
-        if (timestamp - lastFrameTime >= FRAME_INTERVAL) {
-            await fetchData();   // Fetch updated creature positions
-            drawFrame();         // Render everything
-            lastFrameTime = timestamp;
-        }
-        requestAnimationFrame(drawLoop);
-        }
-
-        requestAnimationFrame(drawLoop);
+    // 🚀 Start loops
+    fetchLoop();
+    requestAnimationFrame(drawLoop);
   </script>
 </body>
 </html>

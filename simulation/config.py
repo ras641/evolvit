@@ -10,7 +10,7 @@ BODY_RADIUS = 8
 
 PRINT = 0
 
-SVG = True
+SVG = False
 
 # Simulation Settings
 

@@ -66,7 +66,7 @@ class Organ:
         return [abs_x, abs_y]
     
     def die(self):
-        return
+        
         if not self.parent or not self.parent.isAlive:
             return
 
