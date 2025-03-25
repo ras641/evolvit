@@ -3,8 +3,9 @@ import random
 import math
 import simulation.config as config
 
-
 class Cell:
+
+    BUFFER_FRAMES = 300
 
     def __init__(self, x, y):
         self.x = x
@@ -14,32 +15,138 @@ class Cell:
         self.lock = threading.RLock()
         #print(f"🧱 Created Cell({x}, {y})")
 
-    def add(self, obj):
+        self.state_buffer = [{}, {}]
+        self.building = 0
+        self.snapshot = ""
+
+        self.current_delta = {
+            i: {
+                "frame": i,
+                "new_food": "",
+                "deleted_food": "",
+                "creatures": ""
+            } for i in range(Cell.BUFFER_FRAMES)
+        }
+
+    def swap_buffers(self, frame):
+        """
+        Called at the end of a delta block (e.g., at frame X + 300),
+        to finalize the current buffer (which has deltas from X+1 to X+300),
+        and start building the next one from a new snapshot at X+300.
+        """
+        import copy
+
+        # Finalize the current build buffer
+        self.state_buffer[self.building]["frame"] = frame - Cell.BUFFER_FRAMES  # snapshot corresponds to frame X
+        self.state_buffer[self.building]["state"] = self.snapshot
+        self.state_buffer[self.building]["deltas"] = copy.deepcopy(self.current_delta)
+
+        # Switch buffers
+        self.building = 1 - self.building
+
+        # New snapshot starts at frame X+300
+        self.snapshot = {
+            "creatures": [c.to_dict() for c in self.creatures],
+            "food": [f.to_dict() for f in self.food]
+        }
+
+        # Reset deltas for the next block
+        for i in range(Cell.BUFFER_FRAMES):
+            self.current_delta[i]["new_food"] = ""
+            self.current_delta[i]["deleted_food"] = ""
+            self.current_delta[i]["creatures"] = ""
+
+
+    def get_state(self):
+
+        from simulation.simulation.world import world
+
+        state = self.state_buffer[1 - self.building]
+        base_frame = world.get_built_index()
+
+        filtered_deltas = {
+            str(int(frame) + base_frame): delta
+            for frame, delta in state.get("deltas", {}).items()
+            if delta.get("creatures") or delta.get("new_food") or delta.get("deleted_food")
+        }
+
+        return {
+            **state,
+            "deltas": filtered_deltas
+        }
+    
+    def get_current_delta(self):
+        from simulation.simulation.world import world  # avoid circular import
+        frame_count = world.get_frame()
+
+        index = frame_count % Cell.BUFFER_FRAMES
+
+        # Ensure the delta exists (redundant if initialized at startup)
+        if index not in self.current_delta:
+            self.current_delta[index] = {
+                "frame": frame_count,
+                "new_food": "",
+                "deleted_food": "",
+                "creatures": ""
+            }
+
+        delta = self.current_delta[index]
+
+        # Wipe old delta if outdated
+        if delta["frame"] != frame_count:
+            delta["frame"] = frame_count
+            delta["new_food"] = ""
+            delta["deleted_food"] = ""
+            delta["creatures"] = ""
+
+        return delta
+
+
+    def add(self, obj, log_spawn=True):
         from .creatures import Creature
-            # ✅ Lazy import to avoid circular import
         from .food import Food
+
         with self.lock:
+            delta = self.get_current_delta()
+
             if isinstance(obj, Creature):
                 self.creatures.append(obj)
                 obj.cell = self
+
+                if log_spawn:
+                    delta["creatures"] += f"s[{obj.id},{obj.position[0]},{obj.position[1]},{obj.sprite_id}],"
+
             elif isinstance(obj, Food):
+
                 self.food.append(obj)
                 obj.cell = self
+                delta["new_food"] += f"[{obj.position[0]},{obj.position[1]}],"
+
+
+
 
     def remove(self, obj):
         from .creatures import Creature
-        # ✅ Lazy import to avoid circular import
         from .food import Food
+
         with self.lock:
             try:
+                delta = self.get_current_delta()
+
                 if isinstance(obj, Creature):
                     self.creatures.remove(obj)
                     obj.cell = None
+                    delta["creatures"] += f"r[{obj.id}],"
+
                 elif isinstance(obj, Food):
                     self.food.remove(obj)
                     obj.cell = None
+                    delta["deleted_food"] += f"[{obj.position[0]},{obj.position[1]}],"
             except ValueError:
-                pass
+                pass  # Already removed
+
+
+
 
     def add_food(self):
         

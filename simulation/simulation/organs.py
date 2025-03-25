@@ -75,8 +75,20 @@ class Organ:
         # ✅ Calculate mass first
         self.parent.mass = self.parent.calculate_mass()
 
+        old_body_pos = self.parent.body_pos[:]
+
         # ✅ Calculate center of mass (from organ layout)
         self.parent.body_pos = self.parent.calculate_com()
+
+        # 🧠 After COM & organ shift, self.parent.body_pos is now updated to the *new* body offset
+
+        # ✅ Compute how much the body shifted in local space
+        dx = old_body_pos[0] - self.parent.body_pos[0]
+        dy = old_body_pos[1] - self.parent.body_pos[1]
+
+        # ✅ Move the whole creature so that the *body organ* stays in the same world spot
+        self.parent.position[0] += dx
+        self.parent.position[1] += dy
 
         # print (self.body_pos)
 
@@ -95,6 +107,14 @@ class Organ:
 
         # ✅ Sprite generation (after validation and adjustment)
         self.parent.sprite_id = self.parent.compute_sprite_id()
+
+        with self.parent.cell.lock:
+
+            delta = self.parent.cell.get_current_delta()
+
+            delta["creatures"] += (
+                f"o[{self.parent.id},{self.parent.sprite_id}],"
+            )
 
         if PRINT: print(f"🩸 Organ {self.type} destroyed on Creature {self.parent.id}")
 
@@ -115,8 +135,11 @@ class Mouth(Organ):
         if not self.parent or not self.parent.cell:
             print("[Mouth] No parent or no cell")
             return
-        if not self.isAlive:
+        
+        if not self.isAlive or not self.parent.isAlive:
             return
+        
+
 
         mouth_pos = self.get_absolute_position()
         #print(f"[Mouth] Position: {mouth_pos}")
@@ -141,10 +164,15 @@ class Mouth(Organ):
             #print(f"[Mouth] Distance to food: {dist}")
 
             if dist <= self.size + 4:
+                from simulation.config import frame_count
                 try:
                     with cell.lock:
                         if food_obj in cell.food:
-                            cell.food.remove(food_obj)
+
+                            #delta = self.cell.get_current_delta(frame_count)
+            
+                            #delta["deleted_food"] += f"[{food_obj.position[0]},{food_obj.position[1]}],"
+                            cell.remove(food_obj)
                             self.parent.energy += 20
                             #print(f"[Mouth] Ate food at {food_pos}")
                     break
@@ -173,7 +201,7 @@ class Flipper(Organ):
         world_position = self.get_absolute_position()
 
         # ✅ Apply force in the global frame using angle
-        force_magnitude = self.size * 2  # Constant thrust force
+        force_magnitude = self.size * 0.5  # Constant thrust force
         self.parent.apply_force(angle=self.parent.direction, magnitude=force_magnitude, world_position=world_position)
 
         # ✅ Apply energy cost per activation

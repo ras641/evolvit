@@ -1,7 +1,6 @@
 import random
 import math
 from .organs import Organ
-from .world import food, food_lock
 import threading
 
 import os
@@ -304,7 +303,8 @@ class Creature:
         self.direction = 0  # radians
         self.isAlive = True
         self.organs = []
-        self.cell = None
+        from .world import world
+        self.cell = world.cell_grid[0][0]
 
         self.velocity = [0, 0]
         self.angular_velocity = 0
@@ -557,7 +557,7 @@ class Creature:
 
         # ✅ Apply torque if the force is off-center
         torque = (rel_x * force_y) - (rel_y * force_x)
-        if abs(torque) > 0.001:
+        if abs(torque) > 0.0001:
             self.angular_velocity += torque / self.rotational_inertia
 
             # ✅ Clamp tiny oscillations
@@ -593,6 +593,9 @@ class Creature:
 
     def update_position(self):
         """Apply stored velocity & rotation to move creature each frame."""
+        import math
+        from simulation.simulation.world import world  # dynamic frame access
+        frame_count = world.get_frame()
 
         # ✅ Move using velocity, wrap around world
         self.position[0] = (self.position[0] + self.velocity[0]) % 500
@@ -601,8 +604,24 @@ class Creature:
         # ✅ Rotate based on angular velocity
         self.direction = (self.direction + self.angular_velocity) % (2 * math.pi)
 
+        # ✅ Log movement if meaningful
+        if self.cell and (
+            self.velocity[0] != 0 or
+            self.velocity[1] != 0 or
+            self.angular_velocity != 0
+        ):
+            delta = self.cell.get_current_delta()
+
+            with self.cell.lock:
+                delta["creatures"] += (
+                    f"m[{self.id},{int(self.position[0])},{int(self.position[1])},{round(self.direction, 3)}],"
+                )
+
         # ✅ Apply friction (every few frames)
         if frame_count % FRICTION_STEP == 0:
+
+            #print ('apply friction')
+
             self.velocity[0] *= FRICTION
             self.velocity[1] *= FRICTION
             self.angular_velocity *= ANGULAR_FRICTION
@@ -613,8 +632,9 @@ class Creature:
 
         # ✅ Basal metabolic cost
         self.energy -= BMR
+        if self.energy <= 0:
+            self.die()
 
-        if self.energy <= 0: self.die()
 
     def reproduce(self):
         """Creates a new creature by cloning, with passive mutations (e.g., organs mutate on copy)."""
@@ -656,28 +676,28 @@ class Creature:
 
     def die(self):
         """Handle creature death by spawning food proportionate to its energy."""
-        if PRINT: print(f"💀 Creature {self.id} has died.")
+        if PRINT:
+            print(f"💀 Creature {self.id} has died.")
 
-        num_food = int(math.floor(self.energy / 25))  # Calculate number of food items to drop
+        num_food = int(math.floor(self.energy / 25))  # How much food to spawn
 
-        with food_lock:  # Ensure thread safety
+        if self.cell:
+                
             for _ in range(num_food):
-                # Generate a random offset (within ±10 pixels) so food isn't stacked
                 offset_x = random.randint(-10, 10)
                 offset_y = random.randint(-10, 10)
 
-                # Ensure the food spawns within the world bounds (500x500)
                 food_x = min(max(self.position[0] + offset_x, 0), 499)
                 food_y = min(max(self.position[1] + offset_y, 0), 499)
 
-                # Spawn new food at the calculated position
-                #food.append(Food([food_x, food_y]))
+                from simulation.simulation.food import Food  # safe here to avoid circular imports
+                food = Food([int(food_x), int(food_y)])
+                self.cell.add(food)  # ✅ uses delta-logging add()
 
-        if self.cell:
-            self.cell.remove(self)  # ✅ actually removes it from the world
+            self.cell.remove(self)  # ✅ remove self with delta logging
+
         self.cell = None
-
-        self.isAlive = False  # Mark creature as dead
+        self.isAlive = False
 
     def mutate(self):
         """Applies mutations based on mutation rate."""

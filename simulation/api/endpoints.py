@@ -3,7 +3,7 @@ import uuid
 import os
 
 
-
+from simulation.simulation.world import world
 
 api_bp = Blueprint('api', __name__)
 
@@ -11,65 +11,40 @@ api_bp = Blueprint('api', __name__)
 
 @api_bp.route('/viewer')
 def viewer_page():
-    from simulation.simulation.world import cell_grid
     """Render the canvas viewer with live creature/food state injected."""
     from simulation.simulation.creatures import Creature
-    cell = cell_grid[0][0]
+
+    cell = world.cell_grid[0][0]
+
     with cell.lock:
         creatures = [c.to_dict() for c in cell.creatures]
         food = [f.to_dict() for f in cell.food]
-
-    #print (Creature.sprite_map)
 
     return render_template("viewer.html", sprites=Creature.sprite_map, creatures=creatures, food=food)
 
 
-@api_bp.route('/viewer/data')
-def viewer_data():
-    from simulation.simulation.world import cell_grid
-    from simulation.simulation.creatures import Creature
-
-    cell = cell_grid[0][0]
-    with cell.lock:
-        creatures = [c.to_dict() for c in cell.creatures]
-        food = [f.to_dict() for f in cell.food]
-
-    sprites = {}
-    with Creature.sprite_lock:
-        for sid, layout in Creature.sprite_map.items():
-            if isinstance(layout, dict):
-                layout = layout.get("layout")
-            sprites[sid] = layout
-
-    return jsonify({
-        "creatures": creatures,
-        "food": food,
-        "sprites": sprites
-    })
-
 
 @api_bp.route('/getstate', methods=['GET'])
 def get_state():
-
-    from simulation.simulation.world import cell_grid
-    """Get current state of all creatures and food in a specific cell."""
-    #from simulation.world import food, food_lock  # Avoid circular import
     x = request.args.get('x', type=int)
     y = request.args.get('y', type=int)
 
-    if x is not None and y is not None:
-        
-        if not cell_grid:
-            return jsonify({'status': 'error', 'message': 'Cell not found'}), 404
-        with cell_grid[x][y].lock:
-            return jsonify({
-                "creatures": [c.to_dict() for c in cell_grid[x][y].creatures],
-                "food": [f.to_dict() for f in cell_grid[x][y].food]
-            })
-        
-    else:
-        return jsonify({'status': 'error', 'message': 'Please specify x and y position of cell'}), 404
-        
+    if world.get_built_index() == None:
+
+        return jsonify({ "status": "pending", "message": "Delta buffer not available yet. Please try again shortly." })
+
+    if x is None or y is None:
+        return jsonify({'status': 'error', 'message': 'Please specify x and y position of cell'}), 400
+
+    try:
+        cell = world.cell_grid[y][x]  # Note: grid is [y][x]
+    except IndexError:
+        return jsonify({'status': 'error', 'message': 'Cell not found'}), 404
+
+    with cell.lock:
+        return jsonify(cell.get_state())
+    
+
 @api_bp.route('/getforces', methods=['GET'])
 def get_forces():
     """Get all forces applied to creatures in the last frame."""

@@ -14,9 +14,10 @@ class Food:
         return self.position
 
 
-def food_spawning_loop():
+def food_spawning_loop(world):
 
-    import simulation.simulation.world as world
+    time.sleep(1)
+
     cell = world.cell_grid[0][0]
 
     while True:
