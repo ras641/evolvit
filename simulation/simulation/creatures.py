@@ -630,8 +630,8 @@ class Creature:
             self.die()
 
         # ✅ Optionally: Snap to integer *after* logic for visuals only
-        self.position[0] = round(self.position[0])
-        self.position[1] = round(self.position[1])
+        #self.position[0] = round(self.position[0])
+        #self.position[1] = round(self.position[1])
 
 
 
