@@ -594,21 +594,19 @@ class Creature:
     def update_position(self):
         """Apply stored velocity & rotation to move creature each frame."""
         import math
-        from simulation.simulation.world import world  # dynamic frame access
+        from simulation.simulation.world import world
         frame_count = world.get_frame()
 
-        # ✅ Update position using float velocity
-        self.position[0] = round(self.position[0] + self.velocity[0]) % 500
-        self.position[1] = round(self.position[1] + self.velocity[1]) % 500
+        # ✅ Move using full float precision
+        self.position[0] = (self.position[0] + self.velocity[0]) % 500
+        self.position[1] = (self.position[1] + self.velocity[1]) % 500
 
-        # ✅ Update direction, discretize to 0.01 radians
+        # ✅ Update direction, normalize, and clamp angle
         self.direction = round((self.direction + self.angular_velocity) % (2 * math.pi), 2)
 
-        # ✅ Log delta only if position or rotation changed meaningfully
+        # ✅ Log movement only if relevant (delta gets int version)
         if self.cell and (
-            self.velocity[0] != 0 or
-            self.velocity[1] != 0 or
-            self.angular_velocity != 0
+            self.velocity[0] != 0 or self.velocity[1] != 0 or self.angular_velocity != 0
         ):
             delta = self.cell.get_current_delta()
             with self.cell.lock:
@@ -626,10 +624,15 @@ class Creature:
             if abs(self.angular_velocity) > MAX_AV:
                 self.die()
 
-        # ✅ Basal energy drain
+        # ✅ Energy drain
         self.energy -= BMR
         if self.energy <= 0:
             self.die()
+
+        # ✅ Optionally: Snap to integer *after* logic for visuals only
+        self.position[0] = round(self.position[0])
+        self.position[1] = round(self.position[1])
+
 
 
     def reproduce(self):
