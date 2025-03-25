@@ -598,8 +598,8 @@ class Creature:
         frame_count = world.get_frame()
 
         # ✅ Update position using float velocity
-        self.position[0] = (self.position[0] + self.velocity[0]) % 500
-        self.position[1] = (self.position[1] + self.velocity[1]) % 500
+        self.position[0] = round(self.position[0] + self.velocity[0]) % 500
+        self.position[1] = round(self.position[1] + self.velocity[1]) % 500
 
         # ✅ Update direction, discretize to 0.01 radians
         self.direction = round((self.direction + self.angular_velocity) % (2 * math.pi), 2)

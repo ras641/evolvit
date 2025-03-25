@@ -23,7 +23,7 @@ MAX_AV = 2 #radians per frame
 BMR = 0.01 #energy per frame
 
 # Food Settings
-MAX_FOOD = 100
+MAX_FOOD = 200
 #FOOD_SPAWN_INTERVAL = 40
 FOOD_STEP = 0.01
 
