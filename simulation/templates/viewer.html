@@ -227,6 +227,11 @@
             };
             }
 
+            SPRITES = {};
+            for (const sprite of data.sprites) {
+              SPRITES[sprite.id] = sprite.layout;
+            }
+
             for (const f of data.state.food) {
             FOOD.add(`${f[0]},${f[1]}`);
             }
@@ -262,11 +267,41 @@
       }
     }
 
+    function advanceFrames() {
+      const now = Date.now();
+      const elapsedMs = now - lastRealTime;
+      const targetFrame = baseSimFrame + Math.floor(elapsedMs / (1000 / 30));
+
+      let appliedDelta = false;
+
+      while (currentFrame < targetFrame) {
+        const delta = deltaFrames[currentFrame];
+        if (delta) {
+          parseDeltaFrame(delta.creatures || "");
+          parseFoodFrame(delta.new_food || "", delta.deleted_food || "");
+          appliedDelta = true;
+        }
+        currentFrame++;
+      }
+
+      if (appliedDelta) drawFrame(); // Only draw if we actually applied updates
+
+      // Occasionally fetch new state to re-sync
+      if (now - lastStateFetchTime >= 10000) {
+        fetchInitialState();
+        lastStateFetchTime = now;
+      }
+    }
+
     // Initialize
     fetchInitialState();
-    fetchSprites();
+    //fetchSprites();
+
+    setInterval(advanceFrames, 1000 / 30);
 
     // Run simulation at 30fps
+
+    /*
     setInterval(() => {
         const now = Date.now();
         const elapsedMs = now - lastRealTime;
@@ -294,9 +329,10 @@
             lastStateFetchTime = now;
         }
         }, 1000 / 30);
+    */
 
     // Refresh sprites every 5s
-    setInterval(fetchSprites, 10000);
+    //setInterval(fetchSprites, 10000);
   </script>
 </body>
 </html>

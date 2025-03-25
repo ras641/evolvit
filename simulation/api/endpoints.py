@@ -29,8 +29,7 @@ def get_state():
     x = request.args.get('x', type=int)
     y = request.args.get('y', type=int)
 
-    if world.get_built_index() == None:
-
+    if world.get_built_index() is None:
         return jsonify({ "status": "pending", "message": "Delta buffer not available yet. Please try again shortly." })
 
     if x is None or y is None:
@@ -42,7 +41,24 @@ def get_state():
         return jsonify({'status': 'error', 'message': 'Cell not found'}), 404
 
     with cell.lock:
-        return jsonify(cell.get_state())
+        state_data = cell.get_state()
+
+        # 🔁 Include all sprites
+        import simulation.simulation.creatures as creature_mod  # lazy import
+
+        sprite_data = []
+        with creature_mod.Creature.sprite_lock:
+            for sprite_id, value in creature_mod.Creature.sprite_map.items():
+                layout = value.get("layout") if isinstance(value, dict) else value
+                sprite_data.append({
+                    "id": sprite_id,
+                    "layout": layout
+                })
+
+        # 🧪 Add sprite list to state payload
+        state_data["sprites"] = sprite_data
+
+        return jsonify(state_data)
     
 
 @api_bp.route('/getforces', methods=['GET'])

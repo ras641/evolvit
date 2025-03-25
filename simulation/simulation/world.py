@@ -24,6 +24,7 @@ class World:
         return self.frame
 
     def advance_frame(self):
+
         self.frame += 1
         
         if self.frame % Cell.BUFFER_FRAMES == 0:
@@ -36,6 +37,10 @@ class World:
                 # cell.step(self.frame)
 
             self.built_index = self.frame - 300
+
+        if (self.frame) == 300:
+
+            print ("Buffered")
 
     def add_creature(self, creature):
         with self.creatures_lock:

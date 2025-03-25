@@ -597,40 +597,36 @@ class Creature:
         from simulation.simulation.world import world  # dynamic frame access
         frame_count = world.get_frame()
 
-        # ✅ Move using velocity, wrap around world
+        # ✅ Update position using float velocity
         self.position[0] = (self.position[0] + self.velocity[0]) % 500
         self.position[1] = (self.position[1] + self.velocity[1]) % 500
 
-        # ✅ Rotate based on angular velocity
-        self.direction = (self.direction + self.angular_velocity) % (2 * math.pi)
+        # ✅ Update direction, discretize to 0.01 radians
+        self.direction = round((self.direction + self.angular_velocity) % (2 * math.pi), 2)
 
-        # ✅ Log movement if meaningful
+        # ✅ Log delta only if position or rotation changed meaningfully
         if self.cell and (
             self.velocity[0] != 0 or
             self.velocity[1] != 0 or
             self.angular_velocity != 0
         ):
             delta = self.cell.get_current_delta()
-
             with self.cell.lock:
                 delta["creatures"] += (
-                    f"m[{self.id},{int(self.position[0])},{int(self.position[1])},{round(self.direction, 3)}],"
+                    f"m[{self.id},{int(self.position[0])},{int(self.position[1])},{self.direction}],"
                 )
 
-        # ✅ Apply friction (every few frames)
+        # ✅ Apply friction periodically
         if frame_count % FRICTION_STEP == 0:
-
-            #print ('apply friction')
-
             self.velocity[0] *= FRICTION
             self.velocity[1] *= FRICTION
             self.angular_velocity *= ANGULAR_FRICTION
 
-            # ✅ Kill creature if it spins too fast
+            # ✅ Kill if spinning too fast
             if abs(self.angular_velocity) > MAX_AV:
                 self.die()
 
-        # ✅ Basal metabolic cost
+        # ✅ Basal energy drain
         self.energy -= BMR
         if self.energy <= 0:
             self.die()

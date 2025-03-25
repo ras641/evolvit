@@ -41,10 +41,11 @@ def initialize_creatures(world):
     c([200, 300], [{"type": "flipper", "position": [-30, 0], "size": 5},
                    {"type": "mouth", "position": [25, 0], "size": 5}])
     c([300, 100], [{"type": "mouth", "position": [25, 0], "size": 5}])
-    c([100, 300], [{"type": "flipper", "position": [-30, 5], "size": 5},
+    c([100, 300], [{"type": "flipper", "position": [-30, 20], "size": 5},
                    {"type": "mouth", "position": [25, 0], "size": 5}])
     c([100, 250], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "spike", "position": [25, 0], "size": 5}])
+                   {"type": "spike", "position": [45, 0], "size": 5},
+                   {"type": "mouth", "position": [30, 0], "size": 5}])
     c([200, 250], [{"type": "mouth", "position": [25, 0], "size": 5}])
     c([300, 250], [{"type": "mouth", "position": [-30, 0], "size": 5},
                    {"type": "mouth", "position": [25, 0], "size": 5}])
