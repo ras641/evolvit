@@ -106,7 +106,7 @@ def get_sprites():
 @api_bp.route('/uploadcreature', methods=['POST'])
 def upload_creature():
 
-    from simulation.creatures import Creature
+    import simulation.simulation.creatures as creature_mod
     
     cell = world.cell_grid[0][0]
 
@@ -121,7 +121,7 @@ def upload_creature():
         return jsonify({"error": "Missing or invalid 'position' field"}), 400
 
     try:
-        new_creature = Creature(position=position, organs=organs, name=name, user_created=True)
+        new_creature = creature_mod.Creature(position=position, organs=organs, name=name, user_created=True)
         with cell.lock:
             if new_creature.isAlive:
                 cell.add(new_creature)
