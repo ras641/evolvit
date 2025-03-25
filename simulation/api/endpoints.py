@@ -105,18 +105,34 @@ def get_sprites():
 
 @api_bp.route('/uploadcreature', methods=['POST'])
 def upload_creature():
-    """Upload a new creature to the simulation."""
-    data = request.json
-    position = data.get("position", [0, 0])
-    mutation_rate = float(data.get("mutation_rate", 1.0))
-    name = data.get("name", f"Creature_{uuid.uuid4()}")
+
+    from simulation.simulation.creatures import Creature
+    
+    cell = world.cell_grid[0][0]
+
+    data = request.get_json()
+
+    # Required fields
+    position = data.get("position")
+    organs = data.get("organs", [])
+    name = data.get("name", None)
 
     if not isinstance(position, list) or len(position) != 2:
-        return jsonify({'status': 'error', 'message': 'Invalid position format.'}), 400
+        return jsonify({"error": "Missing or invalid 'position' field"}), 400
 
-    new_creature = Creature(position=position, mutation_rate=mutation_rate, user_created=True, name=name)
+    try:
+        new_creature = Creature(position=position, organs=organs, name=name, user_created=True)
+        with cell.lock:
+            if new_creature.isAlive:
+                cell.add(new_creature)
+            else:
+                return jsonify({"error": "Creature creation failed (invalid organs or dead)"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    with Creature.creatures_lock:
-        Creature.creatures.append(new_creature)
-
-    return jsonify({'status': 'success', 'message': f'Creature {new_creature.id} ({name}) added!'})
+    return jsonify({
+        "message": "✅ Creature created",
+        "creature_id": new_creature.id,
+        "position": new_creature.position,
+        "organs": [o.to_dict() for o in new_creature.organs]
+    })
