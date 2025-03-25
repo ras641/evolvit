@@ -205,7 +205,7 @@ class Flipper(Organ):
         self.parent.apply_force(angle=self.parent.direction, magnitude=force_magnitude, world_position=world_position)
 
         # ✅ Apply energy cost per activation
-        self.parent.energy -= (0.001 * self.size)  # Constant energy drain for using flippers
+        self.parent.energy -= (0.0005 * self.size)  # Constant energy drain for using flippers
 
 
 
