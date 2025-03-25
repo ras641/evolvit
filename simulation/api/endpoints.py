@@ -106,7 +106,7 @@ def get_sprites():
 @api_bp.route('/uploadcreature', methods=['POST'])
 def upload_creature():
 
-    from simulation.simulation.creatures import Creature
+    from simulation.creatures import Creature
     
     cell = world.cell_grid[0][0]
 
