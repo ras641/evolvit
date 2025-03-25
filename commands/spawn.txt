@@ -1,0 +1,1 @@
+curl -X POST https://presentr.ai/evolvit/uploadcreature -H "Content-Type: application/json" -d "{\"position\": [100, 100], \"name\": \"SimpleGuy\", \"organs\": [{\"type\": \"mouth\", \"position\": [0, 25], \"size\": 10}]}"

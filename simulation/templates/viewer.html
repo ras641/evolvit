@@ -47,10 +47,11 @@
     const frameDisplay = document.getElementById("frame-counter");
 
     function parseDeltaFrame(frameStr) {
-        const events = frameStr.match(/(s|m|r|o)\[[^\]]*\]/g) || [];
+      const events = frameStr.match(/(s|m|r|o)\[[^\]]*\]/g) || [];
 
-        for (const e of events) {
-            if (e.startsWith("s[")) {
+      for (const e of events) {
+
+          if (e.startsWith("s[")) {
             const [id, x, y, sprite] = e.slice(2, -1).split(',');
             CREATURES[id] = {
                 id: +id,
@@ -58,28 +59,37 @@
                 direction: 0,
                 sprite_id: +sprite
             };
-            } else if (e.startsWith("m[")) {
+          } 
+          
+          else if (e.startsWith("m[")) {
+
             const [id, x, y, d] = e.slice(2, -1).split(',');
             if (CREATURES[id]) {
                 CREATURES[id].position = [+x, +y];
                 CREATURES[id].direction = +d;
+
             }
-            } else if (e.startsWith("r[")) {
+
+          } else if (e.startsWith("r[")) {
+
             const id = e.slice(2, -1);
             if (CREATURES[id]) {
                 delete CREATURES[id];
             }
-            } else if (e.startsWith("o[")) {
+
+          } else if (e.startsWith("o[")) {
+
             const [id, newSprite] = e.slice(2, -1).split(',');
             if (CREATURES[id]) {
                 CREATURES[id].sprite_id = +newSprite;
                 console.log(`🎨 Updated sprite_id of creature ${id} to ${newSprite}`);
+
             }
-            } else {
-            // console.warn(`❓ Unknown delta event: ${e}`);
-            }
-        }
-        }
+          } else {
+          // console.warn(`❓ Unknown delta event: ${e}`);
+          }
+      }
+    }
 
 
         
@@ -87,21 +97,22 @@
     function parseFoodFrame(newStr, delStr) {
         //console.log("🔥 Incoming food strings:", newStr, delStr);
 
-        const addMatches = newStr.match(/\[\d+,\d+\]/g) || [];
-        const delMatches = delStr.match(/\[\d+,\d+\]/g) || [];
+      const addMatches = newStr.match(/\[\d+,\d+\]/g) || [];
+      const delMatches = delStr.match(/\[\d+,\d+\]/g) || [];
 
-        for (const f of addMatches) {
-            const [x, y] = f.slice(1, -1).split(',').map(Number);
-            FOOD.add(`${x},${y}`);
-            //console.log(`✅ Added food at (${x}, ${y})`);
-        }
+      for (const f of addMatches) {
+          const [x, y] = f.slice(1, -1).split(',').map(Number);
+          FOOD.add(`${x},${y}`);
+          //console.log(`✅ Added food at (${x}, ${y})`);
+      }
 
-        for (const f of delMatches) {
-            const [x, y] = f.slice(1, -1).split(',').map(Number);
-            FOOD.delete(`${x},${y}`);
-            //console.log(`❌ Removed food at (${x}, ${y})`);
-        }
-        }
+      for (const f of delMatches) {
+          const [x, y] = f.slice(1, -1).split(',').map(Number);
+          FOOD.delete(`${x},${y}`);
+          //console.log(`❌ Removed food at (${x}, ${y})`);
+
+      }
+    }
 
     function drawFrame() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -176,83 +187,88 @@
     }
 
     function playbackTick() {
-    const delta = deltaFrames[String(currentFrame)];
-    if (delta) {
-        //console.log(`📦 Applying delta for frame ${currentFrame}`);
 
-        console.log(delta)
+      const delta = deltaFrames[String(currentFrame)];
+      if (delta) {
+          //console.log(`📦 Applying delta for frame ${currentFrame}`);
 
-        if (delta.creatures) {
-        //console.log(`↪️ Creatures: ${delta.creatures}`);
-        parseDeltaFrame(delta.creatures);  // ✅ correct
-        }
+          console.log(delta)
 
-        if (delta.new_food !== undefined || delta.deleted_food !== undefined) {
-        console.log("🌱 New food:", JSON.stringify(delta.new_food));
-        console.log("🗑️ Deleted food:", JSON.stringify(delta.deleted_food));
+          if (delta.creatures) {
+          //console.log(`↪️ Creatures: ${delta.creatures}`);
+          parseDeltaFrame(delta.creatures);  // ✅ correct
+          }
 
-        parseFoodFrame(delta.new_food || "", delta.deleted_food || "");
-        }
-    } else {
-        //console.log(`⏭️ No delta for frame ${currentFrame}`);
-    }
+          if (delta.new_food !== undefined || delta.deleted_food !== undefined) {
+          console.log("🌱 New food:", JSON.stringify(delta.new_food));
+          console.log("🗑️ Deleted food:", JSON.stringify(delta.deleted_food));
 
-    drawFrame();
-    currentFrame++;
+          parseFoodFrame(delta.new_food || "", delta.deleted_food || "");
+          }
+
+      } else {
+          //console.log(`⏭️ No delta for frame ${currentFrame}`);
+      }
+
+      drawFrame();
+      currentFrame++;
     }
 
 
     async function fetchInitialState() {
-        try {
-            const res = await fetch("/evolvit/getstate?x=0&y=0");
-            const data = await res.json();
 
-            if (data.status === "pending") {
-            console.log("⏳ Server says: pending");
-            return;
-            }
+      try {
+        const res = await fetch("/getstate?x=0&y=0");
+        const data = await res.json();
 
-            // Reset everything
-            CREATURES = {};
-            FOOD = new Set();
-            deltaFrames = {};
-
-            // Apply snapshot
-            for (const c of data.state.creatures) {
-            CREATURES[c.id] = {
-                id: c.id,
-                position: c.position,
-                direction: c.direction || 0,
-                sprite_id: c.sprite_id
-            };
-            }
-
-            SPRITES = {};
-            for (const sprite of data.sprites) {
-              SPRITES[sprite.id] = sprite.layout;
-            }
-
-            for (const f of data.state.food) {
-            FOOD.add(`${f[0]},${f[1]}`);
-            }
-
-            // ✅ Store deltas
-            deltaFrames = data.deltas || {};
-
-            // ✅ Redraw immediately
-            drawFrame();
-
-            // ✅ THEN update frame
-            currentFrame = data.frame + 1;
-
-            lastRealTime = Date.now();
-            baseSimFrame = data.frame + 1;
-            currentFrame = baseSimFrame;
-
-        } catch (err) {
-            console.error("Error fetching state:", err);
+        if (data.status === "pending") {
+          console.log("⏳ Server says: pending");
+          return;
         }
+
+        // Reset everything
+        CREATURES = {};
+        FOOD = new Set();
+        deltaFrames = {};
+
+        // Apply snapshot
+        for (const c of data.state.creatures) {
+
+          CREATURES[c.id] = {
+              id: c.id,
+              position: c.position,
+              direction: c.direction || 0,
+              sprite_id: c.sprite_id
+          };
         }
+
+        SPRITES = {};
+        for (const sprite of data.sprites) {
+          SPRITES[sprite.id] = sprite.layout;
+        }
+
+        for (const f of data.state.food) {
+          FOOD.add(`${f[0]},${f[1]}`);
+        }
+
+        // ✅ Store deltas
+        deltaFrames = data.deltas || {};
+
+        // ✅ Redraw immediately
+        drawFrame();
+
+        // ✅ THEN update frame
+        currentFrame = data.frame + 1;
+
+        lastRealTime = Date.now();
+        baseSimFrame = data.frame + 1;
+        currentFrame = baseSimFrame;
+
+      } catch (err) {
+
+        console.error("Error fetching state:", err);
+      }
+    }
 
     async function fetchSprites() {
       try {
@@ -268,6 +284,7 @@
     }
 
     function advanceFrames() {
+      
       const now = Date.now();
       const elapsedMs = now - lastRealTime;
       const targetFrame = baseSimFrame + Math.floor(elapsedMs / (1000 / 30));
