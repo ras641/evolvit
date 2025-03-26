@@ -37,8 +37,9 @@ def initialize_creatures(world):
                    {"type": "mouth", "position": [30, 0], "size": 10}])
     c([400, 200], [{"type": "flipper", "position": [-30, 0], "size": 5},
                    {"type": "mouth", "position": [25, 0], "size": 10}])
-    c([250, 200], [{"type": "flipper", "position": [-30, -10], "size": 10},
+    c([200, 200], [{"type": "flipper", "position": [-30, -10], "size": 10},
                 {"type": "mouth", "position": [25, 0], "size": 10}])
+    c([300, 400], [{"type": "mouth", "position": [30, -10], "size": 20}])
 
 def start_simulation():
     print(f"✅ cell_grid initialized with size {len(world.cell_grid)}x{len(world.cell_grid[0])}")
