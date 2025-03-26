@@ -19,6 +19,8 @@ class Cell:
         self.building = 0
         self.snapshot = ""
 
+        self.delta_frames = [None] * Cell.BUFFER_FRAMES
+
         self.current_delta = {
             i: {
                 "frame": i,
@@ -56,50 +58,58 @@ class Cell:
             self.current_delta[i]["deleted_food"] = ""
             self.current_delta[i]["creatures"] = ""
 
-
     def get_state(self):
-
         from simulation.simulation.world import world
 
         state = self.state_buffer[1 - self.building]
         base_frame = world.get_built_index()
 
+        # Copy and round creature positions/directions
+        snapshot = {
+            "creatures": [
+                {
+                    **dict(c),  # shallow copy
+                    "position": [round(c["position"][0]), round(c["position"][1])],
+                    "direction": round(c["direction"], 2),  # or use 2/4 decimal places if preferred
+                    "id": c["id"],
+                    "name": c["name"]
+                }
+                for c in state.get("state", {}).get("creatures", [])
+            ],
+            "food": state.get("state", {}).get("food", [])
+        }
+
+        # Clean deltas: remove "frame" and filter out empty ones
         filtered_deltas = {
-            str(int(frame) + base_frame): delta
+            str(int(frame) + base_frame): {
+                k: v for k, v in delta.items() if k != "frame"
+            }
             for frame, delta in state.get("deltas", {}).items()
             if delta.get("creatures") or delta.get("new_food") or delta.get("deleted_food")
         }
 
         return {
-            **state,
+            "frame": state["frame"],
+            "state": snapshot,
             "deltas": filtered_deltas
         }
     
     def get_current_delta(self):
-        from simulation.simulation.world import world  # avoid circular import
+        from simulation.simulation.world import world
         frame_count = world.get_frame()
-
         index = frame_count % Cell.BUFFER_FRAMES
 
-        # Ensure the delta exists (redundant if initialized at startup)
-        if index not in self.current_delta:
+        # Wipe if this slot is from a past frame
+        if self.delta_frames[index] != frame_count:
             self.current_delta[index] = {
-                "frame": frame_count,
                 "new_food": "",
                 "deleted_food": "",
                 "creatures": ""
             }
+            self.delta_frames[index] = frame_count
 
-        delta = self.current_delta[index]
+        return self.current_delta[index]
 
-        # Wipe old delta if outdated
-        if delta["frame"] != frame_count:
-            delta["frame"] = frame_count
-            delta["new_food"] = ""
-            delta["deleted_food"] = ""
-            delta["creatures"] = ""
-
-        return delta
 
 
     def add(self, obj, log_spawn=True):

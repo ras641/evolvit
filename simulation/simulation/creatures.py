@@ -544,7 +544,7 @@ class Creature:
         """Apply force in world space, using center-of-mass as origin."""
 
         # ✅ Ignore very small forces
-        if magnitude < 0.01:
+        if magnitude < 0.001:
             return
 
         # ✅ Compute force vector from angle
@@ -620,13 +620,13 @@ class Creature:
                 dtheta = 2 * math.pi - dtheta
 
             parts = []
-            if dx > 0.1:
-                parts.append(f"x{round(self.position[0], 2)}")
+            if dx > 0.8:
+                parts.append(f"x{round(self.position[0], 1)}")
                 self.last_sent_x = self.position[0]
-            if dy > 0.1:
-                parts.append(f"y{round(self.position[1], 2)}")
+            if dy > 0.8:
+                parts.append(f"y{round(self.position[1], 1)}")
                 self.last_sent_y = self.position[1]
-            if dtheta > 0.1:
+            if dtheta > 0.01:
                 parts.append(f"d{round(self.direction, 2)}")
                 self.last_sent_direction = self.direction
 
@@ -797,5 +797,5 @@ class Creature:
                 f"to position {organ.position}, size {organ.size}")
 
     def to_dict(self):
-        return {"id": self.id, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "isAlive": self.isAlive}
+        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "isAlive": self.isAlive}
 

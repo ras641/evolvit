@@ -193,6 +193,12 @@
         ctx.beginPath();
         ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
         ctx.fill();
+
+        // Draw name and ID above creature
+        ctx.fillStyle = "white";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`${c.name} (${c.id})`, cx, cy - 10);
       }
 
       frameDisplay.textContent = `Frame: ${currentFrame}`;
@@ -248,7 +254,8 @@
             id: c.id,
             position: c.position,
             direction: c.direction || 0,
-            sprite_id: c.sprite_id
+            sprite_id: c.sprite_id,
+            name: c.name
           };
         }
 
@@ -310,14 +317,18 @@
       // Optional: manually call fetchInitialState() via keypress or UI for re-sync
     }
 
-    // Initialize
+  // Fetch the initial state and start frame updates
+  fetchInitialState().then(() => {
+    // Start advancing frames at 30 FPS
+    setInterval(advanceFrames, 1000 / 30);
+
+    // Start the 10s periodic refresh AFTER the initial state is loaded
     setInterval(() => {
       console.log("⏳ Checking for delta refresh...");
       fetchInitialState();
       lastStateFetchTime = Date.now();
     }, 10000);
-
-    setInterval(advanceFrames, 1000 / 30);
+  });
 
     // Run simulation at 30fps
 
