@@ -58,19 +58,18 @@ class Cell:
             self.current_delta[i]["deleted_food"] = ""
             self.current_delta[i]["creatures"] = ""
 
-    def get_state(self):
+    def get_full(self):
         from simulation.simulation.world import world
 
         state = self.state_buffer[1 - self.building]
         base_frame = world.get_built_index()
 
-        # Copy and round creature positions/directions
         snapshot = {
             "creatures": [
                 {
-                    **dict(c),  # shallow copy
+                    **dict(c),
                     "position": [round(c["position"][0]), round(c["position"][1])],
-                    "direction": round(c["direction"], 2),  # or use 2/4 decimal places if preferred
+                    "direction": round(c["direction"], 2),
                     "id": c["id"],
                     "name": c["name"]
                 }
@@ -79,7 +78,6 @@ class Cell:
             "food": state.get("state", {}).get("food", [])
         }
 
-        # Clean deltas: remove "frame" and filter out empty ones
         filtered_deltas = {
             str(int(frame) + base_frame): {
                 k: v for k, v in delta.items() if k != "frame"
@@ -93,6 +91,65 @@ class Cell:
             "state": snapshot,
             "deltas": filtered_deltas
         }
+    
+    def get_state(self):
+        state = self.state_buffer[1 - self.building]
+
+        return {
+            "creatures": [
+                {
+                    **dict(c),
+                    "position": [round(c["position"][0]), round(c["position"][1])],
+                    "direction": round(c["direction"], 2),
+                    "id": c["id"],
+                    "name": c["name"]
+                }
+                for c in state.get("state", {}).get("creatures", [])
+            ],
+            "food": state.get("state", {}).get("food", [])
+        }
+    
+    def get_live_state(self):
+        return {
+            "creatures": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "position": [round(c.position[0]), round(c.position[1])],
+                    "direction": round(c.direction, 2),
+                    "energy": c.energy,
+                    "sprite_id": c.sprite_id
+                }
+                for c in self.creatures
+                if c.isAlive  # optionally skip dead creatures
+            ],
+            "food": [
+                [round(f.position[0]), round(f.position[1])]
+                for f in self.food
+            ]
+        }
+    
+    def get_deltas(self):
+        from simulation.simulation.world import world
+
+        state = self.state_buffer[1 - self.building]
+        base_frame = world.get_built_index()
+
+        filtered_deltas = {
+            str(int(frame) + base_frame): {
+                k: v for k, v in delta.items() if k != "frame"
+            }
+            for frame, delta in state.get("deltas", {}).items()
+            if delta.get("creatures") or delta.get("new_food") or delta.get("deleted_food")
+        }
+
+        return {
+            "frame": state["frame"],
+            "deltas": filtered_deltas
+        }
+
+
+
     
     def get_current_delta(self):
         from simulation.simulation.world import world
@@ -195,16 +252,31 @@ class Cell:
             local_creatures = self.creatures[:]  # shallow copy
 
         for i, creature in enumerate(local_creatures):
+
+            cos_theta_a = math.cos(creature.direction)
+            sin_theta_a = math.sin(creature.direction)
+
+            body_rx_a = creature.body_pos[0] * cos_theta_a - creature.body_pos[1] * sin_theta_a
+            body_ry_a = creature.body_pos[0] * sin_theta_a + creature.body_pos[1] * cos_theta_a
+
             body_a = [
-                creature.position[0] + creature.body_pos[0],
-                creature.position[1] + creature.body_pos[1]
+                creature.position[0] + body_rx_a,
+                creature.position[1] + body_ry_a
             ]
 
             for j in range(i + 1, len(local_creatures)):
                 other = local_creatures[j]
+
+
+                cos_theta_b = math.cos(other.direction)
+                sin_theta_b = math.sin(other.direction)
+
+                body_rx_b = other.body_pos[0] * cos_theta_b - other.body_pos[1] * sin_theta_b
+                body_ry_b = other.body_pos[0] * sin_theta_b + other.body_pos[1] * cos_theta_b
+
                 body_b = [
-                    other.position[0] + other.body_pos[0],
-                    other.position[1] + other.body_pos[1]
+                    other.position[0] + body_rx_b,
+                    other.position[1] + body_ry_b
                 ]
 
                 # 1️⃣ Body-to-Body Collision
@@ -212,7 +284,7 @@ class Cell:
                 dy = body_b[1] - body_a[1]
                 distance = math.hypot(dx, dy)
                 min_distance = config.BODY_RADIUS * 2
-                overlap = max(0, min_distance * 1.05 - distance)
+                overlap = max(0, min_distance - distance)
 
                 if overlap > 0:
                     contact_point = [(body_a[0] + body_b[0]) / 2, (body_a[1] + body_b[1]) / 2]
@@ -260,7 +332,7 @@ class Cell:
                     dx = body_a[0] - pos_organ[0]
                     dy = body_a[1] - pos_organ[1]
                     distance = math.hypot(dx, dy)
-                    min_distance = config.BODY_RADIUS + organ.size * 1.1
+                    min_distance = config.BODY_RADIUS + organ.size
                     overlap = max(0, min_distance - distance)
 
                     if overlap > 0:
@@ -285,7 +357,7 @@ class Cell:
                     dx = body_b[0] - pos_organ[0]
                     dy = body_b[1] - pos_organ[1]
                     distance = math.hypot(dx, dy)
-                    min_distance = config.BODY_RADIUS + organ.size * 1.1
+                    min_distance = config.BODY_RADIUS + organ.size
                     overlap = max(0, min_distance - distance)
 
                     if overlap > 0:

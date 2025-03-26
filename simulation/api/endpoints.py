@@ -24,39 +24,83 @@ def viewer_page():
 
 
 
-@api_bp.route('/getstate', methods=['GET'])
-def get_state():
-    x = request.args.get('x', type=int)
-    y = request.args.get('y', type=int)
+@api_bp.route('/getfull', methods=['GET'])
+def get_full_state():
+    x = request.args.get('x', default=0, type=int)
+    y = request.args.get('y', default=0, type=int)
 
     if world.get_built_index() is None:
         return jsonify({ "status": "pending", "message": "Delta buffer not available yet. Please try again shortly." })
 
-    if x is None or y is None:
-        return jsonify({'status': 'error', 'message': 'Please specify x and y position of cell'}), 400
-
     try:
-        cell = world.cell_grid[y][x]  # Note: grid is [y][x]
+        cell = world.cell_grid[y][x]
     except IndexError:
         return jsonify({'status': 'error', 'message': 'Cell not found'}), 404
 
     with cell.lock:
-        state_data = cell.get_state()
+        state_data = cell.get_full()
 
-        # 🔁 Include all sprites
-        import simulation.simulation.creatures as creature_mod  # lazy import
-
+        # Include all sprites inline
+        import simulation.simulation.creatures as creature_mod
         sprite_data = {}
         with creature_mod.Creature.sprite_lock:
             for sprite_id, value in creature_mod.Creature.sprite_map.items():
                 layout = value.get("layout") if isinstance(value, dict) else value
                 sprite_data[sprite_id] = layout
 
-                # 🧪 Add sprite list to state payload
-                state_data["sprites"] = sprite_data
+            state_data["sprites"] = sprite_data
 
         return jsonify(state_data)
     
+@api_bp.route('/getstate', methods=['GET'])
+def get_state():
+
+
+    x = request.args.get('x', default=0, type=int)
+    y = request.args.get('y', default=0, type=int)
+
+    if world.get_built_index() is None:
+        return jsonify({ "status": "pending", "message": "Delta buffer not available yet. Please try again shortly." })
+
+    try:
+        cell = world.cell_grid[y][x]
+
+    except IndexError:
+        return jsonify({'status': 'error', 'message': 'Cell not found'}), 404
+
+    with cell.lock:
+        return jsonify(cell.get_live_state())
+
+@api_bp.route('/getdeltas', methods=['GET'])
+def get_deltas():
+    x = request.args.get('x', default=0, type=int)
+    y = request.args.get('y', default=0, type=int)
+
+    if world.get_built_index() is None:
+        return jsonify({ "status": "pending", "message": "Delta buffer not available yet. Please try again shortly." })
+
+    try:
+        cell = world.cell_grid[y][x]
+    except IndexError:
+        return jsonify({'status': 'error', 'message': 'Cell not found'}), 404
+
+    with cell.lock:
+        return jsonify({
+            "frame": world.get_frame(),
+            "deltas": cell.get_deltas(),
+        })
+
+@api_bp.route('/getsprites', methods=['GET'])
+def get_sprites():
+    import simulation.simulation.creatures as creature_mod
+
+    sprite_data = {}
+    with creature_mod.Creature.sprite_lock:
+        for sprite_id, value in creature_mod.Creature.sprite_map.items():
+            layout = value.get("layout") if isinstance(value, dict) else value
+            sprite_data[sprite_id] = layout
+
+    return jsonify(sprite_data)
 
 @api_bp.route('/getforces', methods=['GET'])
 def get_forces():
@@ -80,24 +124,6 @@ def get_creatures():
 
     return jsonify(models)
 
-@api_bp.route('/getsprites', methods=['GET'])
-def get_sprites():
-    """Return all sprite layouts by sprite ID."""
-
-    import simulation.simulation.creatures as creature_mod  # lazy full module import
-
-    layout_data = []
-
-    with creature_mod.Creature.sprite_lock:
-        for sprite_id, value in creature_mod.Creature.sprite_map.items():
-            layout = value.get("layout") if isinstance(value, dict) else value
-
-            layout_data.append({
-                "id": sprite_id,
-                "layout": layout
-            })
-
-    return jsonify(layout_data)
 
 
 @api_bp.route('/uploadcreature', methods=['POST'])

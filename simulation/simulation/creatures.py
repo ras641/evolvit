@@ -607,6 +607,10 @@ class Creature:
         self.position[0] = (self.position[0] + self.velocity[0]) % 500
         self.position[1] = (self.position[1] + self.velocity[1]) % 500
 
+        if self.id == 0 and False:
+        
+            print (world.get_frame(), self.position, self.direction)
+
         # ✅ Update direction, normalize, and clamp angle
         self.direction = (self.direction + self.angular_velocity) % (2 * math.pi)
 
@@ -628,8 +632,8 @@ class Creature:
             if dy > 0.5:
                 parts.append(f"y{round(self.position[1], 1)}")
                 self.last_sent_y = self.position[1]
-            if dtheta > 0.01:
-                parts.append(f"d{round(self.direction, 2)}")
+            if dtheta > 0.005:
+                parts.append(f"d{round(self.direction, 3)}")
                 self.last_sent_direction = self.direction
 
             if parts:

@@ -159,6 +159,15 @@
         const sin = Math.sin(angle);
         const layout = SPRITES[c.sprite_id];
 
+        if (!layout) {
+          // Fallback: grey circle for creatures without a layout
+          ctx.fillStyle = "gray";
+          ctx.beginPath();
+          ctx.arc(c.position[0], c.position[1], 8, 0, 2 * Math.PI);
+          ctx.fill();
+          continue;
+        }
+
         const organs = layout.split("|").filter(Boolean).map(line => {
           const [type, x, y, size] = line.split(",");
           return {
@@ -198,7 +207,7 @@
           ctx.stroke();
 
           ctx.beginPath();
-          ctx.arc(ox, oy, organ.size * 0.5, 0, 2 * Math.PI);
+          ctx.arc(ox, oy, organ.size, 0, 2 * Math.PI);
           ctx.fill();
         }
 
@@ -220,17 +229,16 @@
         const barY = c.position[1] - 22;
         const energyRatio = Math.max(0, Math.min(1, c.energy / 100)); // clamp 0–1
 
-        // Red background
         ctx.fillStyle = "red";
         ctx.fillRect(barX, barY, barWidth, barHeight);
 
-        // Green foreground
         ctx.fillStyle = "lime";
         ctx.fillRect(barX, barY, barWidth * energyRatio, barHeight);
       }
 
       frameDisplay.textContent = `Frame: ${currentFrame}`;
     }
+
 
     function playbackTick() {
 
@@ -263,7 +271,7 @@
 
     async function fetchInitialState() {
       try {
-        const res = await fetch("/evolvit/getstate?x=0&y=0");
+        const res = await fetch("/evolvit/getfull");
         const data = await res.json();
 
         if (data.status === "pending") {
@@ -310,7 +318,7 @@
 
     async function fetchSprites() {
       try {
-        const res = await fetch("getsprites");
+        const res = await fetch("/evolvit/getsprites");
         const spriteList = await res.json();
         SPRITES = {};
         for (const sprite of spriteList) {
@@ -320,6 +328,14 @@
         console.error("Error fetching sprites:", err);
       }
     }
+
+
+    function clearScreen() {
+      const canvas = document.getElementById("world");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
 
     function advanceFrames() {
       const now = Date.now();
@@ -332,6 +348,8 @@
         const delta = deltaFrames[currentFrame];
         if (!delta) {
           // ❗ Out of deltas: pause simulation advance until buffer is refilled
+          clearScreen(); // 🚨 Clear the canvas
+          console.warn(`⏸️ Paused at frame ${currentFrame}, waiting for new deltas...`);
           break;
         }
 
@@ -340,7 +358,7 @@
 
         // Reduce energy for all creatures
         for (const creature of Object.values(CREATURES)) {
-          creature.energy = Math.max(0, creature.energy - 0.01); // clamp to 0
+          creature.energy = Math.max(0, creature.energy - 0.01);
         }
 
         appliedDelta = true;
@@ -348,57 +366,93 @@
       }
 
       if (appliedDelta) drawFrame();
-
-      // Optional: manually call fetchInitialState() via keypress or UI for re-sync
     }
 
-  // Fetch the initial state and start frame updates
-  fetchInitialState().then(() => {
-    // Start advancing frames at 30 FPS
-    setInterval(advanceFrames, 1000 / 30);
 
-    // Start the 10s periodic refresh AFTER the initial state is loaded
-    setInterval(() => {
-      console.log("⏳ Checking for delta refresh...");
-      fetchInitialState();
-      lastStateFetchTime = Date.now();
-    }, 10000);
-  });
 
-    // Run simulation at 30fps
+
+    
+    // Fetch the initial state and start frame updates
+    fetchInitialState().then(() => {
+      // Start advancing frames at 30 FPS
+      setInterval(advanceFrames, 1000 / 30);
+
+      // Start the 10s periodic refresh AFTER the initial state is loaded
+      setInterval(() => {
+        console.log("⏳ Checking for delta refresh...");
+        fetchInitialState();
+        lastStateFetchTime = Date.now();
+      }, 10000);
+    });
+    
+
+    // Polls full state every frame
+    async function fetchLiveState() {
+      try {
+        const res = await fetch("/getstate?x=0&y=0");
+        const data = await res.json();
+
+        if (data.status === "pending") {
+          console.log("⏳ Server says: pending");
+          return;
+        }
+
+        // Clear state
+        CREATURES = {};
+        FOOD = new Set();
+
+        // Apply new snapshot
+        for (const c of data.creatures) {
+          CREATURES[c.id] = {
+            id: c.id,
+            position: c.position,
+            direction: c.direction || 0,
+            sprite_id: c.sprite_id,
+            name: c.name,
+            energy: c.energy
+          };
+        }
+
+        for (const f of data.food) {
+          FOOD.add(`${f[0]},${f[1]}`);
+        }
+
+        drawFrame();
+
+      } catch (err) {
+        console.error("Error fetching live state:", err);
+      }
+    }
+
+    async function fetchSprites() {
+      try {
+        const res = await fetch("/getsprites");
+        const spriteList = await res.json();
+        SPRITES = spriteList;
+      } catch (err) {
+        console.error("Error fetching sprites:", err);
+      }
+    }
 
     /*
-    setInterval(() => {
-        const now = Date.now();
-        const elapsedMs = now - lastRealTime;
+    // Start viewer
+    fetchSprites().then(() => {
+      // Fetch state every frame
+      setInterval(() => {
+        fetchLiveState();
+      }, 1000 / 30);
 
-        // How many frames should have passed based on real time
-        const targetFrame = baseSimFrame + Math.floor(elapsedMs / (1000 / 30));
-
-        // Apply all deltas up to the current frame
-        while (currentFrame < targetFrame) {
-            const delta = deltaFrames[currentFrame];
-            if (delta) {
-
-                //console.log(delta);
-            parseDeltaFrame(delta.creatures || "");
-            parseFoodFrame(delta.new_food || "", delta.deleted_food || "");
-            }
-            currentFrame++;
-        }
-
-        drawFrame(); // always draw current state
-
-        // Refresh state if 10s of real time has passed
-        if (now - lastStateFetchTime >= 10000) {
-            fetchInitialState();
-            lastStateFetchTime = now;
-        }
-        }, 1000 / 30);
+      // Refresh sprites every 10s
+      setInterval(() => {
+        fetchSprites();
+      }, 10000);
+    });
     */
 
-    // Refresh sprites every 5s
-    //setInterval(fetchSprites, 10000);
+
+
+
+
   </script>
 </body>
 </html>
