@@ -313,6 +313,8 @@ class Creature:
         self.last_sent_y = self.position[1]
         self.last_sent_direction = self.direction
 
+        self.offspringcounter = 1
+
         # ---- Organ setup ----
         if organs:
             for organ_data in organs:
@@ -691,6 +693,9 @@ class Creature:
         offspring.parent_ids.append(self.id)
         offspring.energy = 50
         offspring.direction = self.random_direction()
+
+        offspring.name = f"{self.name}.{self.offspringcounter:02}"
+        self.offspringcounter += 1
 
         offspring.mutate()
 
