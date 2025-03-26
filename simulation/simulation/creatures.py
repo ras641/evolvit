@@ -742,7 +742,8 @@ class Creature:
             mutation_type = random.choice(mutation_options)
 
             if mutation_type == "mutation_rate":
-                self.mutation_rate = random.randint(1, self.mutation_rate + random.randint(-1, 1))
+                self.mutation_rate = random.randint(1, max(1, self.mutation_rate + random.randint(-1, 1)))
+
 
             elif mutation_type == "organs":
                 self.mutate_organs()  # Actually modify organs
