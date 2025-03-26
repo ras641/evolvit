@@ -123,6 +123,7 @@ class Cell:
                 self.creatures.append(obj)
                 obj.cell = self
 
+                #print ("new")
                 if log_spawn:
                     delta["creatures"] += f"s[{obj.id},{obj.position[0]},{obj.position[1]},{obj.direction},{obj.sprite_id}],"
 

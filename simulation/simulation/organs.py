@@ -173,8 +173,10 @@ class Mouth(Organ):
             
                             #delta["deleted_food"] += f"[{food_obj.position[0]},{food_obj.position[1]}],"
                             cell.remove(food_obj)
-                            self.parent.energy += 20
+
+                            self.parent.change_energy(20)
                             #print(f"[Mouth] Ate food at {food_pos}")
+                            #print (f"e[{self.parent.id}, {round(self.parent.energy)}],")
                     break
                 except Exception as e:
                     print(f"[Mouth] Error removing food: {e}")

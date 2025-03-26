@@ -57,7 +57,7 @@
     const frameDisplay = document.getElementById("frame-counter");
 
     function parseDeltaFrame(frameStr) {
-      const events = frameStr.match(/(s|m|r|o)\[[^\]]*\]/g) || [];
+      const events = frameStr.match(/(s|m|r|o|e)\[[^\]]*\]/g) || [];
 
       for (const e of events) {
         if (e.startsWith("s[")) {
@@ -66,7 +66,8 @@
             id: +id,
             position: [+x, +y],
             direction: +d,
-            sprite_id: +sprite
+            sprite_id: +sprite,
+            energy: 50
           };
 
         } else if (e.startsWith("m[")) {
@@ -90,12 +91,24 @@
           const id = e.slice(2, -1);
           delete CREATURES[id];
 
+        } else if (e.startsWith("e[")) {
+          const parts = e.slice(2, -1).split(",");
+          const id = parts[0];
+          const newEnergy = parseInt(parts[1], 10);
+
+          if (CREATURES[id]) {
+            
+            CREATURES[id].energy = newEnergy;
+            
+          }
+          
+
         } else if (e.startsWith("o[")) {
           const [id, newSprite] = e.slice(2, -1).split(",");
           const creature = CREATURES[id];
           if (creature) {
             creature.sprite_id = +newSprite;
-            console.log(`🎨 Updated sprite_id of creature ${id} to ${newSprite}`);
+            
           }
 
         } else {
@@ -199,6 +212,21 @@
         ctx.font = "8px sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(`${c.name} (${c.id})`, cx, cy - 10);
+
+        // Draw health bar
+        const barWidth = 30;
+        const barHeight = 4;
+        const barX = cx - barWidth / 2;
+        const barY = cy - 22;
+        const energyRatio = Math.max(0, Math.min(1, c.energy / 100)); // clamp 0–1
+
+        // Red background
+        ctx.fillStyle = "red";
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // Green foreground
+        ctx.fillStyle = "lime";
+        ctx.fillRect(barX, barY, barWidth * energyRatio, barHeight);
       }
 
       frameDisplay.textContent = `Frame: ${currentFrame}`;
@@ -255,7 +283,8 @@
             position: c.position,
             direction: c.direction || 0,
             sprite_id: c.sprite_id,
-            name: c.name
+            name: c.name,
+            energy: c.energy
           };
         }
 
@@ -308,6 +337,12 @@
 
         parseDeltaFrame(delta.creatures || "");
         parseFoodFrame(delta.new_food || "", delta.deleted_food || "");
+
+        // Reduce energy for all creatures
+        for (const creature of Object.values(CREATURES)) {
+          creature.energy = Math.max(0, creature.energy - 0.01); // clamp to 0
+        }
+
         appliedDelta = true;
         currentFrame++;
       }

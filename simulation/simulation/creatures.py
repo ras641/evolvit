@@ -563,12 +563,12 @@ class Creature:
 
         # ✅ Apply torque if the force is off-center
         torque = (rel_x * force_y) - (rel_y * force_x)
-        if abs(torque) > 0.0001:
-            self.angular_velocity += torque / self.rotational_inertia
 
-            # ✅ Clamp tiny oscillations
-            if abs(self.angular_velocity) < 0.0001:
-                self.angular_velocity = 0
+        self.angular_velocity += torque / self.rotational_inertia
+
+        # ✅ Clamp tiny oscillations
+        if abs(self.angular_velocity) < 0.0001:
+            self.angular_velocity = 0
 
         # ✅ Debug logging
         if DEBUG:
@@ -663,10 +663,11 @@ class Creature:
     def reproduce(self):
         """Creates a new creature by cloning, with passive mutations (e.g., organs mutate on copy)."""
 
-        if self.energy < 70:
-            return None
 
-        self.energy -= 60
+        if self.energy < 100:
+            return None
+    
+        self.change_energy(-60)
 
         #offspring_organs = [organ.copy_mutate() for organ in self.organs]  # Passive mutation happens here
 
@@ -697,9 +698,13 @@ class Creature:
         offspring.name = f"{self.name}.{self.offspringcounter:02}"
         self.offspringcounter += 1
 
+        offspring.isAlive = True
+
         offspring.mutate()
 
         return offspring
+    
+
 
     def die(self):
         """Handle creature death by spawning food proportionate to its energy."""
@@ -759,6 +764,13 @@ class Creature:
 
         self.rotational_inertia = self.calculate_rotational_inertia()
 
+    def change_energy(self, amount):
+        self.energy += amount
+        if self.cell:
+            delta = self.cell.get_current_delta()
+            
+            delta["creatures"] += (f"e[{self.id},{self.energy}]")
+
     def mutate_organs(self):
         """Randomly add, delete, or modify an organ."""
         actions = []
@@ -802,5 +814,5 @@ class Creature:
                 f"to position {organ.position}, size {organ.size}")
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "isAlive": self.isAlive}
+        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "energy": self.energy, "isAlive": self.isAlive}
 

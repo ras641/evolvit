@@ -33,24 +33,12 @@ def initialize_creatures(world):
         creature = Creature(position=pos, organs=organs)
         cell.add(creature, log_spawn=False)
 
-    c([100, 100], [])
     c([100, 100], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [25, 0], "size": 5}])
+                   {"type": "mouth", "position": [30, 0], "size": 10}])
     c([400, 200], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [25, 0], "size": 5}])
-    c([200, 300], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [25, 0], "size": 5}])
-    c([300, 100], [{"type": "mouth", "position": [25, 0], "size": 5}])
-    c([100, 300], [{"type": "flipper", "position": [-30, 20], "size": 5},
-                   {"type": "mouth", "position": [25, 0], "size": 5}])
-    c([100, 250], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [30, 0], "size": 5}])
-    c([200, 250], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [25, 0], "size": 5}])
-    c([300, 250], [{"type": "mouth", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [25, 0], "size": 5}])
-    c([400, 250], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [25, 0], "size": 5}])
+                   {"type": "mouth", "position": [25, 0], "size": 10}])
+    c([250, 200], [{"type": "flipper", "position": [-30, -10], "size": 10},
+                {"type": "mouth", "position": [25, 0], "size": 10}])
 
 def start_simulation():
     print(f"✅ cell_grid initialized with size {len(world.cell_grid)}x{len(world.cell_grid[0])}")
