@@ -309,6 +309,10 @@ class Creature:
         self.velocity = [0, 0]
         self.angular_velocity = 0
 
+        self.last_sent_x = self.position[0]
+        self.last_sent_y = self.position[1]
+        self.last_sent_direction = self.direction
+
         # ---- Organ setup ----
         if organs:
             for organ_data in organs:
@@ -602,23 +606,42 @@ class Creature:
         self.position[1] = (self.position[1] + self.velocity[1]) % 500
 
         # ✅ Update direction, normalize, and clamp angle
-        self.direction = round((self.direction + self.angular_velocity) % (2 * math.pi), 2)
+        self.direction = (self.direction + self.angular_velocity) % (2 * math.pi)
 
-        # ✅ Log movement only if relevant (delta gets int version)
-        if self.cell and (
-            self.velocity[0] != 0 or self.velocity[1] != 0 or self.angular_velocity != 0
-        ):
-            delta = self.cell.get_current_delta()
-            with self.cell.lock:
-                delta["creatures"] += (
-                    f"m[{self.id},{int(self.position[0])},{int(self.position[1])},{self.direction}],"
-                )
 
-        # ✅ Apply friction periodically
-        if frame_count % FRICTION_STEP == 0:
-            self.velocity[0] *= FRICTION
-            self.velocity[1] *= FRICTION
-            self.angular_velocity *= ANGULAR_FRICTION
+        # ✅ Log movement only distance from last sent position over threshold
+        if self.cell:
+            dx = abs(self.position[0] - self.last_sent_x)
+            dy = abs(self.position[1] - self.last_sent_y)
+            dtheta = abs(self.direction - self.last_sent_direction)
+
+            # Wrap direction diff to [0, π] if needed
+            if dtheta > math.pi:
+                dtheta = 2 * math.pi - dtheta
+
+            parts = []
+            if dx > 0.1:
+                parts.append(f"x{round(self.position[0], 2)}")
+                self.last_sent_x = self.position[0]
+            if dy > 0.1:
+                parts.append(f"y{round(self.position[1], 2)}")
+                self.last_sent_y = self.position[1]
+            if dtheta > 0.1:
+                parts.append(f"d{round(self.direction, 2)}")
+                self.last_sent_direction = self.direction
+
+            if parts:
+                move_str = f"m[{self.id}," + ",".join(parts) + "],"
+                delta = self.cell.get_current_delta()
+                with self.cell.lock:
+                    delta["creatures"] += move_str
+                    
+
+                # ✅ Apply friction periodically
+                if frame_count % FRICTION_STEP == 0:
+                    self.velocity[0] *= FRICTION
+                    self.velocity[1] *= FRICTION
+                    self.angular_velocity *= ANGULAR_FRICTION
 
             # ✅ Kill if spinning too fast
             if abs(self.angular_velocity) > MAX_AV:

@@ -46,17 +46,14 @@ def get_state():
         # 🔁 Include all sprites
         import simulation.simulation.creatures as creature_mod  # lazy import
 
-        sprite_data = []
+        sprite_data = {}
         with creature_mod.Creature.sprite_lock:
             for sprite_id, value in creature_mod.Creature.sprite_map.items():
                 layout = value.get("layout") if isinstance(value, dict) else value
-                sprite_data.append({
-                    "id": sprite_id,
-                    "layout": layout
-                })
+                sprite_data[sprite_id] = layout
 
-        # 🧪 Add sprite list to state payload
-        state_data["sprites"] = sprite_data
+                # 🧪 Add sprite list to state payload
+                state_data["sprites"] = sprite_data
 
         return jsonify(state_data)
     
