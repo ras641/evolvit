@@ -622,10 +622,10 @@ class Creature:
                 dtheta = 2 * math.pi - dtheta
 
             parts = []
-            if dx > 0.8:
+            if dx > 0.5:
                 parts.append(f"x{round(self.position[0], 1)}")
                 self.last_sent_x = self.position[0]
-            if dy > 0.8:
+            if dy > 0.5:
                 parts.append(f"y{round(self.position[1], 1)}")
                 self.last_sent_y = self.position[1]
             if dtheta > 0.01:
@@ -683,8 +683,8 @@ class Creature:
 
         # Spawn nearby
         angle = random.uniform(0, 2 * math.pi)
-        offset_x = math.cos(angle) * 50
-        offset_y = math.sin(angle) * 50
+        offset_x = math.cos(angle) * 100
+        offset_y = math.sin(angle) * 100
 
         offspring.position[0] = (self.position[0] + offset_x) % 500
         offspring.position[1] = (self.position[1] + offset_y) % 500
@@ -734,17 +734,15 @@ class Creature:
     def mutate(self):
         """Applies mutations based on mutation rate."""
 
-        num_mutations = max(1, int(self.mutation_rate + random.choice([-1, 0, 1])))
+        num_mutations = max(0, int(self.mutation_rate + random.choice([-1, 0, 1])))
 
-        num_mutations = random.randint(1,5)
-
-        mutation_options = ["organs"]
+        mutation_options = ["organs", "mutation_rate"]
 
         for _ in range(num_mutations):
             mutation_type = random.choice(mutation_options)
 
             if mutation_type == "mutation_rate":
-                self.mutation_rate = max(0, self.mutation_rate + random.randint(-1, 1))
+                self.mutation_rate = random.randint(1, self.mutation_rate + random.randint(-1, 1))
 
             elif mutation_type == "organs":
                 self.mutate_organs()  # Actually modify organs
