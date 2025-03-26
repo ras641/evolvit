@@ -289,7 +289,7 @@ class Creature:
 
 
 
-    def __init__(self, position, mutation_rate=1.0, user_created=True, name=None, organs=None):
+    def __init__(self, position, mutation_rate=1, user_created=True, name=None, organs=None):
         self.id = Creature.counter
         Creature.counter += 1
         self.name = name if name else f"Creature_{self.id}"
@@ -734,7 +734,7 @@ class Creature:
     def mutate(self):
         """Applies mutations based on mutation rate."""
 
-        num_mutations = max(0, int(self.mutation_rate + random.choice([-1, 0, 1])))
+        num_mutations = max(0, int(self.mutation_rate))
 
         mutation_options = ["organs", "mutation_rate"]
 
