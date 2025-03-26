@@ -235,7 +235,7 @@
 
     async function fetchInitialState() {
       try {
-        const res = await fetch("/getstate?x=0&y=0");
+        const res = await fetch("/evolvit/getstate?x=0&y=0");
         const data = await res.json();
 
         if (data.status === "pending") {
