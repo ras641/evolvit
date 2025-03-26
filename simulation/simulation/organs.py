@@ -207,7 +207,7 @@ class Flipper(Organ):
         self.parent.apply_force(angle=self.parent.direction, magnitude=force_magnitude, world_position=world_position)
 
         # ✅ Apply energy cost per activation
-        self.parent.energy -= (0.0001 * self.size)  # Constant energy drain for using flippers
+        self.parent.energy -= (0.001 * self.size)  # Constant energy drain for using flippers
 
 
 
@@ -219,4 +219,4 @@ class Spike(Organ):
         self.type = "spike"
     def simulate(self):
         """Try to eat any nearby food based on organ's position."""
-        self.parent.energy -= (0.005 * self.size)
+        self.parent.energy -= (0.001 * self.size)
