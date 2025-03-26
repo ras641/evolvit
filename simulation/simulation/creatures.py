@@ -289,11 +289,11 @@ class Creature:
 
 
 
-    def __init__(self, position, mutation_rate=1, user_created=True, name=None, organs=None):
+    def __init__(self, position=None, mutation_rate=1, user_created=True, name=None, organs=None):
         self.id = Creature.counter
         Creature.counter += 1
         self.name = name if name else f"Creature_{self.id}"
-        self.position = position[:]  # Now represents the center of mass
+        self.position = position[:] if position else [random.randint(1,500), random.randint(1,500)] # Now represents the center of mass
         self.energy = 50
         self.age = 0
         self.mutation_rate = mutation_rate

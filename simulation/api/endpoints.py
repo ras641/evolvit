@@ -128,28 +128,29 @@ def get_creatures():
 
 @api_bp.route('/uploadcreature', methods=['POST'])
 def upload_creature():
-
     import simulation.simulation.creatures as creature_mod
-    
-    cell = world.cell_grid[0][0]
 
+    cell = world.cell_grid[0][0]
     data = request.get_json()
 
-    # Required fields
-    position = data.get("position")
+    position = data.get("position", None)  # optional
     organs = data.get("organs", [])
     name = data.get("name", None)
 
-    if not isinstance(position, list) or len(position) != 2:
-        return jsonify({"error": "Missing or invalid 'position' field"}), 400
-
     try:
-        new_creature = creature_mod.Creature(position=position, organs=organs, name=name, user_created=True)
+        new_creature = creature_mod.Creature(
+            position=position,  # may be None
+            organs=organs,
+            name=name,
+            user_created=True
+        )
+
         with cell.lock:
             if new_creature.isAlive:
                 cell.add(new_creature)
             else:
                 return jsonify({"error": "Creature creation failed (invalid organs or dead)"}), 400
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
