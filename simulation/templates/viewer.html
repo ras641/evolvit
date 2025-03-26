@@ -211,13 +211,13 @@
         ctx.fillStyle = "white";
         ctx.font = "8px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`${c.name} (${c.id})`, cx, cy - 10);
+        ctx.fillText(`${c.name} (${c.id})`, c.position[0], c.position[1] - 10);
 
         // Draw health bar
         const barWidth = 30;
         const barHeight = 4;
-        const barX = cx - barWidth / 2;
-        const barY = cy - 22;
+        const barX = c.position[0] - barWidth / 2;
+        const barY = c.position[1] - 22;
         const energyRatio = Math.max(0, Math.min(1, c.energy / 100)); // clamp 0–1
 
         // Red background
