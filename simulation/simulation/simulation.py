@@ -41,7 +41,7 @@ def initialize_creatures(world):
         ]
     , "Xman")
 
-    c([150, 250], [
+    c([450, 250], [
         {"type": "mouth", "position": [-30, -30], "size": 10},
         {"type": "flipper", "position": [-30, 30], "size": 10},
         {"type": "spike", "position": [30, 30], "size": 10}
