@@ -289,7 +289,7 @@ class Creature:
 
 
 
-    def __init__(self, position=None, mutation_rate=1, user_created=True, name=None, organs=None):
+    def __init__(self, position=None, mutation_rate=1, creator=None, name=None, organs=None):
         self.id = Creature.counter
         Creature.counter += 1
         self.name = name if name else f"Creature_{self.id}"
@@ -297,8 +297,8 @@ class Creature:
         self.energy = 50
         self.age = 0
         self.mutation_rate = mutation_rate
-        self.user_created = user_created
-        self.parent_ids = []
+        self.creator = creator
+        self.parent_id = -1
         self.generation = 0
         self.direction = 0  # radians
         self.isAlive = True
@@ -695,7 +695,7 @@ class Creature:
 
         # Inherit traits
         offspring.generation = self.generation + 1
-        offspring.parent_ids.append(self.id)
+        offspring.parent_id = self.id
         offspring.energy = 50
         offspring.direction = self.random_direction()
 
@@ -817,5 +817,5 @@ class Creature:
                 f"to position {organ.position}, size {organ.size}")
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "energy": self.energy, "isAlive": self.isAlive}
+        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "energy": self.energy, "isAlive": self.isAlive, "parent_id": self.parent_id, "creator": self.creator}
 

@@ -133,12 +133,13 @@ def upload_creature():
 
     cell = world.cell_grid[0][0]
     data = request.get_json()
-    
+
     print("Received creature:", data)
 
     position = data.get("position", None)  # optional
     organs = data.get("organs", [])
     name = data.get("name", None)
+    creator = data.get("name", None)
 
     try:
         new_creature = creature_mod.Creature(
