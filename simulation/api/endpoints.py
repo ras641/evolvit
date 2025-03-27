@@ -146,7 +146,7 @@ def upload_creature():
             position=position,  # may be None
             organs=organs,
             name=name,
-            user_created=True
+            creator=creator
         )
 
         with cell.lock:

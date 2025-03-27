@@ -384,7 +384,7 @@ class Creature:
         print(f"├── Mass: {self.mass}")
         print(f"├── Rotational Inertia: {self.rotational_inertia}")
         print(f"├── Mutation Rate: {self.mutation_rate}")
-        print(f"├── User Created: {self.user_created}")
+        print(f"├── Creator: {self.creator}")
         print(f"├── Generation: {self.generation}")
         print(f"├── Parent IDs: {self.parent_ids}")
         print(f"├── Sprite ID: {self.sprite_id}")
