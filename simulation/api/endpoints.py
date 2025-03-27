@@ -40,15 +40,20 @@ def get_full_state():
     with cell.lock:
         state_data = cell.get_full()
 
-        # Include all sprites inline
+        # Get used sprite IDs from creatures in the cell
+        used_sprite_ids = {creature.sprite_id for creature in cell.creatures}
+
+        # Include only used sprites
         import simulation.simulation.creatures as creature_mod
         sprite_data = {}
         with creature_mod.Creature.sprite_lock:
-            for sprite_id, value in creature_mod.Creature.sprite_map.items():
-                layout = value.get("layout") if isinstance(value, dict) else value
-                sprite_data[sprite_id] = layout
+            for sprite_id in used_sprite_ids:
+                value = creature_mod.Creature.sprite_map.get(sprite_id)
+                if value is not None:
+                    layout = value.get("layout") if isinstance(value, dict) else value
+                    sprite_data[sprite_id] = layout
 
-            state_data["sprites"] = sprite_data
+        state_data["sprites"] = sprite_data
 
         return jsonify(state_data)
     
