@@ -697,6 +697,7 @@ class Creature:
 
         # Inherit traits
         offspring.generation = self.generation + 1
+        offspring.parent_ids = self.parent_ids.copy()
         offspring.parent_ids.append(self.id)
         offspring.energy = 50
         offspring.direction = self.random_direction()
