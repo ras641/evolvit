@@ -2,6 +2,7 @@ import threading
 import random
 import math
 import simulation.config as config
+import json
 
 class Cell:
 
@@ -182,8 +183,9 @@ class Cell:
 
                 #print ("new")
                 if log_spawn:
-                    delta["creatures"] += f"s[{obj.id},{obj.position[0]},{obj.position[1]},{obj.direction},{obj.sprite_id},{obj.name},{obj.parent_id}, {obj.creator}],"
-
+                    parent_ids_str = json.dumps(obj.parent_ids, separators=(',', ':'))
+                    delta["creatures"] += f"s[{obj.id}|{obj.position[0]}|{obj.position[1]}|{obj.direction}|{obj.sprite_id}|{obj.name}|{parent_ids_str}|{obj.creator}],"
+                    
             elif isinstance(obj, Food):
 
                 self.food.append(obj)

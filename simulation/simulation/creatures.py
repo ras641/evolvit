@@ -2,6 +2,7 @@ import random
 import math
 from .organs import Organ
 import threading
+import string
 
 import os
 
@@ -298,7 +299,7 @@ class Creature:
         self.age = 0
         self.mutation_rate = mutation_rate
         self.creator = creator
-        self.parent_id = -1
+        self.parent_ids = []
         self.generation = 0
         self.direction = 0  # radians
         self.isAlive = True
@@ -696,11 +697,11 @@ class Creature:
 
         # Inherit traits
         offspring.generation = self.generation + 1
-        offspring.parent_id = self.id
+        offspring.parent_ids.append(self.id)
         offspring.energy = 50
         offspring.direction = self.random_direction()
 
-        offspring.name = f"{self.name}.{self.offspringcounter:02}"
+        offspring.name = self.name
         self.offspringcounter += 1
 
         offspring.isAlive = True
@@ -741,7 +742,7 @@ class Creature:
 
         num_mutations = max(0, int(self.mutation_rate))
 
-        mutation_options = ["organs", "mutation_rate"]
+        mutation_options = ["organs", "mutation_rate", "name"]
 
         for _ in range(num_mutations):
             mutation_type = random.choice(mutation_options)
@@ -752,6 +753,9 @@ class Creature:
 
             elif mutation_type == "organs":
                 self.mutate_organs()  # Actually modify organs
+            
+            elif mutation_type == "name":
+                self.name = self.mutate_name(self.name)
 
         if not self.validate_organs():
             
@@ -817,6 +821,38 @@ class Creature:
             if PRINT: print(f"🔧 {self.id}: Modified organ {organ.type} from position {old_position}, size {old_size} "
                 f"to position {organ.position}, size {organ.size}")
 
+    def mutate_name(name):
+        name_list = list(name)
+
+        mutation_type = random.choice(['add', 'delete', 'change', 'case'])
+
+        # Enforce limits
+        if len(name_list) >= 10:
+            mutation_type = random.choice(['delete', 'change', 'case'])
+        elif len(name_list) <= 1:
+            mutation_type = random.choice(['add', 'change', 'case'])
+
+        if mutation_type == 'add':
+            pos = random.randint(0, len(name_list))
+            new_char = random.choice(string.ascii_lowercase)
+            name_list.insert(pos, new_char)
+
+        elif mutation_type == 'delete':
+            pos = random.randint(0, len(name_list) - 1)
+            del name_list[pos]
+
+        elif mutation_type == 'change':
+            pos = random.randint(0, len(name_list) - 1)
+            new_char = random.choice(string.ascii_lowercase)
+            name_list[pos] = new_char
+
+        elif mutation_type == 'case':
+            pos = random.randint(0, len(name_list) - 1)
+            c = name_list[pos]
+            name_list[pos] = c.upper() if c.islower() else c.lower()
+
+        return ''.join(name_list)
+
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "energy": round(self.energy), "isAlive": self.isAlive, "parent_id": self.parent_id, "creator": self.creator}
+        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "energy": round(self.energy), "isAlive": self.isAlive, "parent_ids": self.parent_ids, "creator": self.creator}
 
