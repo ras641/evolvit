@@ -184,8 +184,8 @@ class Cell:
                 #print ("new")
                 if log_spawn:
                     parent_ids_str = json.dumps(obj.parent_ids, separators=(',', ':'))
-                    delta["creatures"] += f"s[{obj.id}|{obj.position[0]}|{obj.position[1]}|{obj.direction}|{obj.sprite_id}|{obj.name}|{parent_ids_str}|{obj.creator}],"
-                    
+                    delta["creatures"] += f's[{obj.id}|{obj.position[0]}|{obj.position[1]}|{obj.direction}|{obj.sprite_id}|{obj.name}|"{parent_ids_str}"|{obj.creator}],'
+
             elif isinstance(obj, Food):
 
                 self.food.append(obj)
