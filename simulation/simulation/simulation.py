@@ -41,13 +41,6 @@ def initialize_creatures(world):
         ]
     , "Xman")
 
-    c([450, 250], [
-        {"type": "mouth", "position": [-30, -30], "size": 10},
-        {"type": "flipper", "position": [-30, 30], "size": 5},
-        {"type": "spike", "position": [30, 30], "size": 10}
-        ]
-    , "Yman")
-
 def start_simulation():
     print(f"✅ cell_grid initialized with size {len(world.cell_grid)}x{len(world.cell_grid[0])}")
     threading.Thread(target=simulation_loop, daemon=True).start()
