@@ -182,7 +182,7 @@ class Cell:
 
                 #print ("new")
                 if log_spawn:
-                    delta["creatures"] += f"s[{obj.id},{obj.position[0]},{obj.position[1]},{obj.direction},{obj.sprite_id}],"
+                    delta["creatures"] += f"s[{obj.id},{obj.position[0]},{obj.position[1]},{obj.direction},{obj.sprite_id},{obj.name},{obj.parent_id}, {obj.creator}],"
 
             elif isinstance(obj, Food):
 
