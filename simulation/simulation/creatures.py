@@ -678,7 +678,7 @@ class Creature:
         offspring = Creature(
             position=self.position.copy(),
             mutation_rate=self.mutation_rate,
-            user_created=False,
+            creator = self.creator,
             organs=[organ.copy() for organ in self.organs if organ.isAlive]
         )
 
