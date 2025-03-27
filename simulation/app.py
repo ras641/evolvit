@@ -1,10 +1,12 @@
 from flask import Flask
 from simulation.api.endpoints import api_bp
+from flask_compress import Compress
 
 from simulation.simulation.simulation import start_simulation
 
 from flask_cors import CORS
 app = Flask(__name__)
+Compress(app)
 CORS(app)
 
 # Register API routes
