@@ -29,17 +29,24 @@ def simulation_loop():
 def initialize_creatures(world):
     cell = world.cell_grid[0][0]
 
-    def c(pos, organs):  # short helper
-        creature = Creature(position=pos, organs=organs)
+    def c(pos, organs, name):  # short helper
+        creature = Creature(position=pos, organs=organs, name=name)
         cell.add(creature, log_spawn=False)
 
-    c([100, 100], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [30, 0], "size": 10}])
-    c([400, 200], [{"type": "flipper", "position": [-30, 0], "size": 5},
-                   {"type": "mouth", "position": [25, 0], "size": 10}])
-    c([200, 200], [{"type": "flipper", "position": [-30, -10], "size": 10},
-                {"type": "mouth", "position": [25, 0], "size": 10}])
-    c([300, 400], [{"type": "mouth", "position": [30, -10], "size": 20}])
+    c([150, 250], [
+        {"type": "mouth", "position": [-30, -30], "size": 10},
+        {"type": "flipper", "position": [-30, 30], "size": 10},
+        {"type": "eye", "position": [30, -30], "size": 10},
+        {"type": "spike", "position": [30, 30], "size": 10}
+        ]
+    , "Xman")
+
+    c([150, 250], [
+        {"type": "mouth", "position": [-30, -30], "size": 10},
+        {"type": "flipper", "position": [-30, 30], "size": 10},
+        {"type": "spike", "position": [30, 30], "size": 10}
+        ]
+    , "Yman")
 
 def start_simulation():
     print(f"✅ cell_grid initialized with size {len(world.cell_grid)}x{len(world.cell_grid[0])}")

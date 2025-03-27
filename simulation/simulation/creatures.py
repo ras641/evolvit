@@ -817,5 +817,5 @@ class Creature:
                 f"to position {organ.position}, size {organ.size}")
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "energy": self.energy, "isAlive": self.isAlive, "parent_id": self.parent_id, "creator": self.creator}
+        return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "energy": round(self.energy), "isAlive": self.isAlive, "parent_id": self.parent_id, "creator": self.creator}
 
