@@ -421,6 +421,7 @@ class Creature:
             # ✅ 3. Check overlap with other organs
             for j in range(i + 1, len(self.organs)):
                 other = self.organs[j]
+                if not other.isAlive: continue
                 ox, oy = other.position
                 osize = other.size
 

@@ -139,7 +139,7 @@ def upload_creature():
     position = data.get("position", None)  # optional
     organs = data.get("organs", [])
     name = data.get("name", None)
-    creator = data.get("name", None)
+    creator = data.get("creator", None)
 
     try:
         new_creature = creature_mod.Creature(
