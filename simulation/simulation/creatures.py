@@ -821,8 +821,8 @@ class Creature:
             if PRINT: print(f"🔧 {self.id}: Modified organ {organ.type} from position {old_position}, size {old_size} "
                 f"to position {organ.position}, size {organ.size}")
 
-    def mutate_name(name):
-        name_list = list(name)
+    def mutate_name(self):
+        name_list = list(self.name)
 
         mutation_type = random.choice(['add', 'delete', 'change', 'case'])
 
@@ -851,7 +851,7 @@ class Creature:
             c = name_list[pos]
             name_list[pos] = c.upper() if c.islower() else c.lower()
 
-        return ''.join(name_list)
+        self.name = ''.join(name_list)
 
     def to_dict(self):
         return {"id": self.id, "name": self.name, "position": self.position, "direction": self.direction, "sprite_id": self.sprite_id, "energy": round(self.energy), "isAlive": self.isAlive, "parent_ids": self.parent_ids, "creator": self.creator}
