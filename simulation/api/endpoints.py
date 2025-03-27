@@ -30,7 +30,10 @@ def get_full_state():
     y = request.args.get('y', default=0, type=int)
 
     if world.get_built_index() is None:
-        return jsonify({ "status": "pending", "message": "Delta buffer not available yet. Please try again shortly." })
+        return jsonify({
+            "status": "pending",
+            "message": "Delta buffer not available yet. Please try again shortly."
+        })
 
     try:
         cell = world.cell_grid[y][x]
@@ -40,10 +43,12 @@ def get_full_state():
     with cell.lock:
         state_data = cell.get_full()
 
-        # Get used sprite IDs from creatures in the cell
+        # Collect sprite_ids from both current creatures and pretracked spawn history
         used_sprite_ids = {creature.sprite_id for creature in cell.creatures}
+        if hasattr(cell, 'used_sprite_ids'):
+            used_sprite_ids.update(cell.used_sprite_ids)
 
-        # Include only used sprites
+        # Filter and include only relevant sprite layouts
         import simulation.simulation.creatures as creature_mod
         sprite_data = {}
         with creature_mod.Creature.sprite_lock:
@@ -51,10 +56,10 @@ def get_full_state():
                 value = creature_mod.Creature.sprite_map.get(sprite_id)
                 if value is not None:
                     layout = value.get("layout") if isinstance(value, dict) else value
-                    sprite_data[sprite_id] = layout
+                    if layout:
+                        sprite_data[sprite_id] = layout
 
         state_data["sprites"] = sprite_data
-
         return jsonify(state_data)
     
 @api_bp.route('/getstate', methods=['GET'])

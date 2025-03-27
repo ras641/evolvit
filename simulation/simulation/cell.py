@@ -22,6 +22,7 @@ class Cell:
 
         self.delta_frames = [None] * Cell.BUFFER_FRAMES
 
+
         self.current_delta = {
             i: {
                 "frame": i,
@@ -30,6 +31,8 @@ class Cell:
                 "creatures": ""
             } for i in range(Cell.BUFFER_FRAMES)
         }
+
+        self.used_sprite_ids = set()
 
     def swap_buffers(self, frame):
         """
@@ -180,6 +183,11 @@ class Cell:
             if isinstance(obj, Creature):
                 self.creatures.append(obj)
                 obj.cell = self
+
+                # 🔼 Track used sprite IDs for this update
+                if not hasattr(self, 'used_sprite_ids'):
+                    self.used_sprite_ids = set()
+                self.used_sprite_ids.add(obj.sprite_id)
 
                 #print ("new")
                 if log_spawn:
