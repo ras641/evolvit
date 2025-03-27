@@ -128,10 +128,13 @@ def get_creatures():
 
 @api_bp.route('/uploadcreature', methods=['POST'])
 def upload_creature():
+
     import simulation.simulation.creatures as creature_mod
 
     cell = world.cell_grid[0][0]
     data = request.get_json()
+    
+    print("Received creature:", data)
 
     position = data.get("position", None)  # optional
     organs = data.get("organs", [])
