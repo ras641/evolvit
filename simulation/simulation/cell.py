@@ -183,9 +183,16 @@ class Cell:
 
                 #print ("new")
                 if log_spawn:
-                    parent_ids_str = json.dumps(obj.parent_ids, separators=(',', ':'))
-                    delta["creatures"] += f's[{obj.id}|{obj.position[0]}|{obj.position[1]}|{obj.direction}|{obj.sprite_id}|{obj.name}|"{parent_ids_str}"|{obj.creator}],'
-
+                    creature_dict = {
+                        "id": obj.id,
+                        "position": obj.position,
+                        "direction": obj.direction,
+                        "sprite_id": obj.sprite_id,
+                        "name": obj.name,
+                        "parent_ids": obj.parent_ids,
+                        "creator": obj.creator
+                    }
+                    delta["creatures"] += f"j{json.dumps(creature_dict)},"
             elif isinstance(obj, Food):
 
                 self.food.append(obj)
