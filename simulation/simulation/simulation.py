@@ -35,7 +35,7 @@ def initialize_creatures(world):
 
     c([150, 250], [
         {"type": "mouth", "position": [-30, -30], "size": 10},
-        {"type": "flipper", "position": [-30, 30], "size": 10},
+        {"type": "flipper", "position": [-30, 30], "size": 5},
         {"type": "eye", "position": [30, -30], "size": 10},
         {"type": "spike", "position": [30, 30], "size": 10}
         ]
@@ -43,7 +43,7 @@ def initialize_creatures(world):
 
     c([450, 250], [
         {"type": "mouth", "position": [-30, -30], "size": 10},
-        {"type": "flipper", "position": [-30, 30], "size": 10},
+        {"type": "flipper", "position": [-30, 30], "size": 5},
         {"type": "spike", "position": [30, 30], "size": 10}
         ]
     , "Yman")
