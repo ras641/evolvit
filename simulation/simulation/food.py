@@ -31,7 +31,7 @@ def food_spawning_loop(world):
             with cell.lock:
                 cell.add(new_food)
 
-        time.sleep(0.05 * (len(cell.creatures)) * (30/config.FPS))
+        time.sleep(0.05 * (len(cell.creatures) ** 1.5) * (30/config.FPS))
 
 def food_spawning_loop2():
     return
