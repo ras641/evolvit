@@ -755,7 +755,7 @@ class Creature:
                 self.mutate_organs()  # Actually modify organs
             
             elif mutation_type == "name":
-                self.name = self.mutate_name(self.name)
+                self.mutate_name()
 
         if not self.validate_organs():
             
