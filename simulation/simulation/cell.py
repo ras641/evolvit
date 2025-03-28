@@ -62,6 +62,8 @@ class Cell:
             self.current_delta[i]["deleted_food"] = ""
             self.current_delta[i]["creatures"] = ""
 
+        self.used_sprite_ids = set()
+
     def get_full(self):
         from simulation.simulation.world import world
 
