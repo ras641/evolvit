@@ -743,7 +743,7 @@ class Creature:
 
         num_mutations = max(0, int(self.mutation_rate))
 
-        mutation_options = ["organs", "mutation_rate", "name"]
+        mutation_options = ["organs", "mutation_rate"]
 
         for _ in range(num_mutations):
             mutation_type = random.choice(mutation_options)
@@ -754,9 +754,8 @@ class Creature:
 
             elif mutation_type == "organs":
                 self.mutate_organs()  # Actually modify organs
-            
-            elif mutation_type == "name":
-                self.mutate_name()
+                
+        self.mutate_name()
 
         if not self.validate_organs():
             
