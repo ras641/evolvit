@@ -42,22 +42,7 @@ def get_full_state():
 
     with cell.lock:
         state_data = cell.get_full()
-
-        # Determine which buffer is finalized
-        read_index = 1 - cell.building
-
-        # Collect sprite_ids from current snapshot state
-        snapshot_creature_ids = {
-            creature.get("sprite_id")
-            for creature in state_data.get("creatures", [])
-            if creature.get("sprite_id") is not None
-        }
-
-        # Add any from the finalized delta buffer's used sprite set
-        delta_buffer_ids = cell.used_sprite_ids[read_index] if hasattr(cell, 'used_sprite_ids') else set()
-
-        # Combine
-        used_sprite_ids = snapshot_creature_ids | delta_buffer_ids
+        used_sprite_ids = cell.get_used_sprite_ids()
 
         # Filter and include only relevant sprite layouts
         import simulation.simulation.creatures as creature_mod

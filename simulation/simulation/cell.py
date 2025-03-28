@@ -62,7 +62,11 @@ class Cell:
             self.current_delta[i]["deleted_food"] = ""
             self.current_delta[i]["creatures"] = ""
 
-        self.used_sprite_ids[self.building] = set()
+        self.used_sprite_ids[self.building] = {
+            creature.get("sprite_id")
+            for creature in self.snapshot.get("creatures", [])
+            if creature.get("sprite_id") is not None
+        }
 
     def get_full(self):
         from simulation.simulation.world import world
@@ -238,6 +242,15 @@ class Cell:
         from .food import Food
 
         self.food.append(Food(position=[random.randint(0, 499), random.randint(0, 499)]))
+
+
+    def get_used_sprite_ids(self):
+        """
+        Returns the set of sprite IDs used in the finalized buffer,
+        including the snapshot and any creatures added via delta.
+        """
+        read_index = 1 - self.building
+        return self.used_sprite_ids[read_index]
 
     def run_creatures(self):
         """Handles all creature updates in one place."""
