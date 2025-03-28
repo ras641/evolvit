@@ -32,7 +32,7 @@ class Cell:
             } for i in range(Cell.BUFFER_FRAMES)
         }
 
-        self.used_sprite_ids = set()
+        self.used_sprite_ids_buffer = [set(), set()]
 
     def swap_buffers(self, frame):
         """
@@ -62,7 +62,7 @@ class Cell:
             self.current_delta[i]["deleted_food"] = ""
             self.current_delta[i]["creatures"] = ""
 
-        self.used_sprite_ids = set()
+        self.used_sprite_ids[self.building] = set()
 
     def get_full(self):
         from simulation.simulation.world import world
@@ -187,9 +187,7 @@ class Cell:
                 obj.cell = self
 
                 # 🔼 Track used sprite IDs for this update
-                if not hasattr(self, 'used_sprite_ids'):
-                    self.used_sprite_ids = set()
-                self.used_sprite_ids.add(obj.sprite_id)
+                self.used_sprite_ids_buffer[self.building].add(obj.sprite_id)
 
                 #print ("new")
                 if log_spawn:
