@@ -29,9 +29,12 @@ class World:
         
         if self.frame % Cell.BUFFER_FRAMES == 0:
 
-            for row in self.cell_grid:
-                for cell in row:
-                    cell.swap_buffers(self.frame)
+            self.cell_grid[0][0].swap_buffers(self.frame)
+
+            
+            #for row in self.cell_grid:
+            #    for cell in row:
+            #        cell.swap_buffers(self.frame)
 
                 # Optional per-frame simulation logic
                 # cell.step(self.frame)
