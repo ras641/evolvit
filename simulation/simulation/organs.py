@@ -108,6 +108,8 @@ class Organ:
         # ✅ Sprite generation (after validation and adjustment)
         self.parent.sprite_id = self.parent.compute_sprite_id()
 
+        self.parent.used_sprite_ids[self.sprite_buffer_index].add(self.parent.sprite_id)
+
         with self.parent.cell.lock:
 
             delta = self.parent.cell.get_current_delta()
