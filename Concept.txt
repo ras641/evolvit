@@ -1,0 +1,28 @@
+Concept
+- Basic idea
+
+	- Creatures
+	- Optional organs up to 5 of
+		- Mouth eats
+		- Flipper moves
+		- Spike kills
+		- Eye doesnt do anything for now
+
+	- Creator
+
+
+Technicals
+
+- Backend uses python/flask. suppose to be temporary but took enough time
+- Basic collision detection
+- Basic physics, rotational inertia, inertia, angular velocity. forces
+- Sends state and deltas every 10 seconds
+- Frontend webview js. updates frame constantly, checks for the delta and applies it
+
+
+Future
+
+- Grid
+- Brains
+- Eyes
+- Other organs (blinkers and splicers)

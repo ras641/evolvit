@@ -1,0 +1,36 @@
+Hi this ras641 or Ryan submitting for reddists hackathon 2025
+
+This is a virtual world filled with these creatures, each made up of a customizable set of organs like eyes, mouths, flippers, and spikes.
+
+They eat with mouths, move with flippers and attack other creatures with spikes
+
+You'll see here you can see their names and energy
+
+And here you can optionally view it in 3d
+
+They swpawn with 50 out of 100 energy and when they reach 100 they lose 60 and reproduce.
+
+All creatures lose health over time and flippers and spikes lose even more based on their size
+
+The offspring is usually mutated form its parent sometimes its cloned
+
+Its all contained within 500x500 pixels and wraps
+
+
+This is the introduction screen
+
+Here users can edit and upload there own creature with their own organs which will appear in the world.
+
+Here is some basic info about the app
+
+Here is some more detailed and technical information.
+
+
+
+If we view world again youll see the creature I just made has been placed into the world in a random location
+
+Creatures I made come with this tophat and I may make it an in-app purchase at some point to pay for servers
+
+Future improvements may include a grid system to expand the world, editable simple brains and other organs like splicers and blinkers
+
+Thankyou for listening

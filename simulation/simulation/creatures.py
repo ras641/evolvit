@@ -794,7 +794,7 @@ class Creature:
         action = random.choice(actions)
 
         if action == "add":
-            organ_type = random.choice(self.ORGANS)
+            organ_type = random.choice(Creature.ORGANS)
             position = [random.randint(-30, 30), random.randint(-30, 30)]  # Pixel coordinates
             size = random.randint(5, 15)  # Sizes in pixels
 
