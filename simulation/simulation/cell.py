@@ -32,7 +32,8 @@ class Cell:
             } for i in range(Cell.BUFFER_FRAMES)
         }
 
-        self.used_sprite_ids = [set(), set()]
+        self.used_sprite_ids = [set(), set(), set()]
+        self.sprite_buffer_index = 0
 
     def swap_buffers(self, frame):
         """
@@ -49,6 +50,7 @@ class Cell:
 
         # Switch buffers
         self.building = 1 - self.building
+        self.sprite_buffer_index = (self.sprite_buffer_index + 1) % 3
 
         # New snapshot starts at frame X+300
         self.snapshot = {
@@ -63,7 +65,7 @@ class Cell:
             self.current_delta[i]["creatures"] = ""
 
 
-        self.used_sprite_ids[self.building] = {
+        self.used_sprite_ids[self.sprite_buffer_index] = {
             creature.get("sprite_id")
             for creature in self.snapshot.get("creatures", [])
             if creature.get("sprite_id") is not None
@@ -194,7 +196,7 @@ class Cell:
                 obj.cell = self
 
                 # 🔼 Track used sprite IDs for this update
-                self.used_sprite_ids[self.building].add(obj.sprite_id)
+                self.used_sprite_ids[self.sprite_buffer_index].add(obj.sprite_id)
 
                 #print ("new")
                 if log_spawn:
@@ -248,12 +250,7 @@ class Cell:
 
 
     def get_used_sprite_ids(self):
-        """
-        Returns the set of sprite IDs used in the finalized buffer,
-        including the snapshot and any creatures added via delta.
-        """
-        read_index = 1 - self.building
-        return self.used_sprite_ids[read_index]
+        return set().union(*self.used_sprite_ids)
 
     def run_creatures(self):
         """Handles all creature updates in one place."""
