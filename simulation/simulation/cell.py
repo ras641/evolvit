@@ -62,13 +62,15 @@ class Cell:
             self.current_delta[i]["deleted_food"] = ""
             self.current_delta[i]["creatures"] = ""
 
+        print("Are sprite buffers shared?", self.used_sprite_ids[0] is self.used_sprite_ids[1])
+
         self.used_sprite_ids[self.building] = {
             creature.get("sprite_id")
             for creature in self.snapshot.get("creatures", [])
             if creature.get("sprite_id") is not None
         }
 
-        print (self.used_sprite_ids)
+        print (self.used_sprite_ids[self.building])
 
     def get_full(self):
         from simulation.simulation.world import world
