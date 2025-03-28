@@ -71,7 +71,7 @@ class Cell:
             if creature.get("sprite_id") is not None
         }
 
-        print (self.used_sprite_ids)
+        #print (self.used_sprite_ids)
 
     def get_full(self):
         from simulation.simulation.world import world
