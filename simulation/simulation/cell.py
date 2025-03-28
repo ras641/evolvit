@@ -32,7 +32,7 @@ class Cell:
             } for i in range(Cell.BUFFER_FRAMES)
         }
 
-        self.used_sprite_ids_buffer = [set(), set()]
+        self.used_sprite_ids = [set(), set()]
 
     def swap_buffers(self, frame):
         """
@@ -187,7 +187,7 @@ class Cell:
                 obj.cell = self
 
                 # 🔼 Track used sprite IDs for this update
-                self.used_sprite_ids_buffer[self.building].add(obj.sprite_id)
+                self.used_sprite_ids[self.building].add(obj.sprite_id)
 
                 #print ("new")
                 if log_spawn:
