@@ -12,6 +12,8 @@ CORS(app)
 # Register API routes
 app.register_blueprint(api_bp)
 
+start_simulation()
+
 if __name__ == '__main__':
     print("✅ Simulation initialized.")
     start_simulation()
